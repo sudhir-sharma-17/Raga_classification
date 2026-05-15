@@ -1,4 +1,4 @@
-﻿annotated-doc==0.0.4
+annotated-doc==0.0.4
 annotated-types==0.7.0
 anyio==4.13.0
 asttokens==3.0.0
@@ -96,3 +96,13 @@ typing_extensions==4.15.0
 urllib3==2.7.0
 uvicorn==0.46.0
 wcwidth==0.2.13
+python-dotenv
+langchain
+langchain-community
+langchain-huggingface
+langchain-groq
+langchain-chroma
+sentence-transformers
+chromadb
+pypdf
+groq

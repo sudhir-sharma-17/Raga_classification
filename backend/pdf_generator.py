@@ -26,6 +26,25 @@ class RagaReportPDF(FPDF):
         self.set_text_color(128, 128, 128)
         self.cell(0, 10, f'Confidential | Page {self.page_no()} | Raga Vision AI System', 0, 0, 'C')
 
+def clean_text(text):
+    """Sanitize text for FPDF latin-1 compatibility."""
+    if not text: return ""
+    if not isinstance(text, str): text = str(text)
+    # Replace common non-latin1 characters that cause crashes
+    replacements = {
+        "\u2013": "-", # en dash
+        "\u2014": "-", # em dash
+        "\u2018": "'", # left single quote
+        "\u2019": "'", # right single quote
+        "\u201c": '"', # left double quote
+        "\u201d": '"', # right double quote
+        "\u2022": "*", # bullet
+    }
+    for old, new in replacements.items():
+        text = text.replace(old, new)
+    # Final fallback: encode to latin-1 and ignore failures, then decode back
+    return text.encode("latin-1", "ignore").decode("latin-1")
+
 def generate_report_pdf(data, output_path):
     pdf = RagaReportPDF()
     
@@ -42,10 +61,10 @@ def generate_report_pdf(data, output_path):
     pdf.cell(0, 10, data.get('filename', 'Unknown'), 0, 1)
     
     pdf.set_font('helvetica', 'B', 11)
-    pdf.cell(50, 10, "Time Classification:", 0, 0)
-    pdf.set_font('helvetica', 'B', 11)
     pdf.set_text_color(176, 141, 72)
-    pdf.cell(0, 10, data.get('prediction', 'Unknown').upper(), 0, 1)
+    # Sanitize prediction: remove newlines and special dashes for FPDF
+    prediction_text = clean_text(data.get('prediction', 'Unknown')).replace('\n', ' ').upper()
+    pdf.cell(0, 10, prediction_text, 0, 1)
     
     pdf.set_text_color(0, 0, 0)
     pdf.set_font('helvetica', 'B', 11)
@@ -103,7 +122,7 @@ def generate_report_pdf(data, output_path):
     pdf.set_font('helvetica', 'B', 13)
     pdf.set_text_color(0, 0, 0)
     pdf.set_x(15)
-    pdf.multi_cell(180, 8, rec.get('primary', 'N/A'))
+    pdf.multi_cell(180, 8, clean_text(rec.get('primary', 'N/A')))
     
     # Secondary Recommendations
     pdf.set_xy(10, 125)
@@ -117,13 +136,13 @@ def generate_report_pdf(data, output_path):
     pdf.set_text_color(80, 80, 80)
     sec = rec.get('secondary', [])
     sec_text = "\n".join([f"- {s}" for s in sec])
-    pdf.multi_cell(90, 6, sec_text if sec else "None")
+    pdf.multi_cell(90, 6, clean_text(sec_text if sec else "None"))
     
     y_sec = pdf.get_y()
     pdf.set_xy(105, y_start)
     exp = therapy.get('explanation', [])
     exp_text = "\n".join([f"- {e}" for e in exp])
-    pdf.multi_cell(95, 6, exp_text if exp else "None")
+    pdf.multi_cell(95, 6, clean_text(exp_text if exp else "None"))
     
     # --- PAGE 3: DETAILED FEATURE ANALYSIS ---
     pdf.add_page()
@@ -182,8 +201,17 @@ def generate_report_pdf(data, output_path):
         pdf.set_xy(10, r5_y)
         render_box("Timbre Analytics", detailed.get('timbre', {}), (99, 110, 114))
         pdf.set_xy(105, r5_y)
-        adv = data.get('metadata', {}).get('advanced_features', {})
-        render_box("AI Confidence Reasoning", {"Sa Stability": f"{adv.get('sa_stability',0):.2f}", "Nyas": ", ".join(adv.get('nyas_swaras',[])), "Logic": data.get('report',['N/A'])[0][:45]}, (0, 184, 148))
+        
+        # Safe access for AI Confidence Reasoning
+        adv = data.get('metadata', {}).get('advanced_features', {}) if data.get('metadata') else {}
+        report_list = data.get('report', [])
+        report_snippet = report_list[0][:45] if isinstance(report_list, list) and len(report_list) > 0 else "N/A"
+        
+        render_box("AI Confidence Reasoning", {
+            "Sa Stability": f"{adv.get('sa_stability',0):.2f}", 
+            "Nyas": ", ".join(adv.get('nyas_swaras',[])) if adv.get('nyas_swaras') else "N/A", 
+            "Logic": report_snippet
+        }, (0, 184, 148))
 
     # --- PAGE 4: NARRATIVE & LOGIC ---
     pdf.add_page()
@@ -193,7 +221,7 @@ def generate_report_pdf(data, output_path):
     pdf.ln(5)
     pdf.set_text_color(0, 0, 0)
     pdf.set_font('helvetica', '', 11)
-    pdf.multi_cell(0, 7, data.get('narrative', 'No narrative provided.'))
+    pdf.multi_cell(0, 7, clean_text(data.get('narrative', 'No narrative provided.')))
     pdf.ln(10)
     
     # Spectrogram if available
@@ -208,8 +236,10 @@ def generate_report_pdf(data, output_path):
     pdf.cell(0, 10, "DETECTED SWARA SPECTRUM:", 0, 1)
     pdf.set_font('helvetica', '', 10)
     swara_list = data.get('metadata', {}).get('swaras', [])
-    if swara_list:
-        pdf.cell(0, 8, " | ".join(swara_list), 0, 1)
+    if isinstance(swara_list, list) and len(swara_list) > 0:
+        pdf.cell(0, 8, " | ".join([str(s) for s in swara_list]), 0, 1)
+    else:
+        pdf.cell(0, 8, "N/A", 0, 1)
     
     pdf.output(output_path)
     return output_path

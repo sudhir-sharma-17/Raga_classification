@@ -63,7 +63,9 @@ class HybridRagaVision:
         # --- PHASE 0: ROBUST TONIC LOCKING ---
         # Load a small sample for tonic estimation
         y_tonic, sr_tonic = librosa.load(filepath, sr=22050, duration=10)
-        f0_t, voiced_t, _ = librosa.pyin(y_tonic, sr=sr_tonic, fmin=librosa.note_to_hz('C2'), fmax=librosa.note_to_hz('C7'))
+        # Optimized: Using yin instead of pyin for much faster initial locking
+        f0_t = librosa.yin(y_tonic, sr=sr_tonic, fmin=librosa.note_to_hz('C2'), fmax=librosa.note_to_hz('C7'), hop_length=1024)
+        voiced_t = np.ones_like(f0_t, dtype=bool) # Heuristic for tonic locking
         
         initial_tonic = estimate_tonic_advanced(f0_t, voiced_t)
         locked_tonic = refine_tonic_symbolic(f0_t, voiced_t, initial_tonic)
@@ -201,7 +203,7 @@ class HybridRagaVision:
         # AI Narrative Reasoning
         swaras_detected = sorted(list(aggregated.get("swara_distribution", {}).keys()))
         narrative = self.cognitive_reasoning(
-            raga=res["prediction"],
+            raga=res["raga_name"],
             mood=neural_mood,
             confidence=res["confidence"],
             logic=res["analysis"]["dominant_features"],
@@ -232,8 +234,8 @@ class HybridRagaVision:
             "detailed_features": detailed_features,
             "pitch_contour_data": pitch_contour,
             "swara_distribution_data": aggregated.get("swara_distribution", {}),
-            "therapy": get_therapy_output({"metadata": aggregated}, raga_name=res["prediction"]),
-            "therapy_recommendation": get_therapy_output({"metadata": aggregated}, raga_name=res["prediction"]),
+            "therapy": get_therapy_output({"metadata": aggregated}, raga_name=res["raga_name"]),
+            "therapy_recommendation": get_therapy_output({"metadata": aggregated}, raga_name=res["raga_name"]),
             "spectrogram_url": spectrogram_url
         }
 

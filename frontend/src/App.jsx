@@ -151,109 +151,102 @@ const InteractiveSwaraChart = ({ distribution }) => {
 
 const CyberLoader = () => {
   const [progress, setProgress] = useState(0);
-  const [log, setLog] = useState("SAMPLING");
-  const [isShattered, setIsShattered] = useState(false);
   const hudRef = useRef(null);
-  
-  const logs = ["SAMPLING", "TUNING", "SYNCING", "MASTERING", "ANALYSING"];
-  const notes = ["♩", "♪", "♫", "♬", "♭", "♮", "♯"];
 
   useEffect(() => {
     const interval = setInterval(() => {
       setProgress(prev => {
-        if (prev >= 98) return prev;
-        const next = prev + Math.floor(Math.random() * 2) + 1;
-        return next > 98 ? 98 : next;
+        if (prev >= 99) return prev;
+        let increment = 1;
+        if (prev < 40) increment = Math.floor(Math.random() * 3) + 2;
+        else if (prev < 80) increment = Math.floor(Math.random() * 2) + 1;
+        else increment = 0.2; 
+        
+        const next = prev + increment;
+        return next > 99 ? 99 : next;
       });
-    }, 150);
-
+    }, 250);
     return () => clearInterval(interval);
   }, []);
 
-  useEffect(() => {
-    if (progress > 85) {
-      setLog("ANALYSING");
-    } else if (progress % 20 === 0) {
-      setLog(logs[Math.floor(Math.random() * logs.length)]);
-    }
-    createMusicNote();
-  }, [progress]);
-
-  const createMusicNote = () => {
-    if (!hudRef.current) return;
-    const noteEl = document.createElement('div');
-    noteEl.className = 'musical-note';
-    noteEl.innerText = notes[Math.floor(Math.random() * notes.length)];
-    
-    const angle = Math.random() * Math.PI * 2;
-    const dist = 80 + Math.random() * 40;
-    
-    noteEl.style.position = 'absolute';
-    noteEl.style.left = `calc(50% + ${Math.cos(angle) * dist}px)`;
-    noteEl.style.top = `calc(50% + ${Math.sin(angle) * dist}px)`;
-    noteEl.style.color = '#00f2ff';
-    noteEl.style.fontSize = '18px';
-    noteEl.style.textShadow = '0 0 5px #00f2ff';
-    noteEl.style.pointerEvents = 'none';
-    
-    hudRef.current.appendChild(noteEl);
-
-    const randomRotation = Math.random() * 40 - 20; 
-    noteEl.animate([
-      { opacity: 0, transform: `translateY(0) rotate(0deg)` },
-      { opacity: 1, transform: `translateY(-25px) rotate(${randomRotation}deg)` },
-      { opacity: 0, transform: `translateY(-50px) rotate(${randomRotation * 2}deg)` }
-    ], { 
-      duration: 1200, 
-      easing: 'ease-out' 
-    }).onfinish = () => noteEl.remove();
+  const getProcessText = (p) => {
+    if (p < 15) return "INITIALIZING SYSTEM";
+    if (p < 30) return "AUDIO CHUNKING";
+    if (p < 50) return "FEATURE EXTRACTION";
+    if (p < 70) return "SPECTRAL ANALYSIS";
+    if (p < 90) return "NEURAL PROCESSING";
+    return "FINALIZING RESULTS";
   };
 
   return (
-    <div className="cyber-loader-overlay">
+    <motion.div 
+      className="cyber-loader-overlay"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ 
+        scale: 3, 
+        opacity: 0, 
+        filter: 'blur(30px)',
+        transition: { duration: 0.7, ease: "easeIn" }
+      }}
+    >
       <style>{`
         .cyber-loader-overlay {
           position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-          background: rgba(2, 11, 16, 0.95);
+          background: radial-gradient(circle at center, rgba(2, 11, 16, 0.98) 0%, #01080b 100%);
           display: flex; justify-content: center; align-items: center;
           z-index: 9999; overflow: hidden;
         }
         .hud-container {
-          position: relative; width: 300px; height: 300px;
+          position: relative; width: 350px; height: 350px;
           display: flex; justify-content: center; align-items: center;
-          animation: bootUp 1s cubic-bezier(0.1, 0.9, 0.2, 1);
         }
         .ring-outer {
-          position: absolute; width: 280px; height: 280px; border-radius: 50%;
-          border: 2px solid transparent; border-top: 3px solid #00f2ff;
-          border-bottom: 3px solid #00f2ff; animation: rotate 4s linear infinite;
-          filter: drop-shadow(0 0 10px #00f2ff);
+          position: absolute; width: 300px; height: 300px; border-radius: 50%;
+          border: 1px solid rgba(0, 242, 255, 0.1);
+          border-top: 4px solid #00f2ff;
+          border-bottom: 4px solid #00f2ff;
+          animation: rotate 3s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+          filter: drop-shadow(0 0 20px #00f2ff);
         }
-        .ring-middle {
+        .ring-inner {
           position: absolute; width: 240px; height: 240px; border-radius: 50%;
-          border: 2px dashed rgba(0, 242, 255, 0.5); animation: rotate 8s linear infinite reverse;
+          border: 1px dashed rgba(0, 242, 255, 0.3);
+          animation: rotate 10s linear infinite reverse;
         }
         .core {
-          position: relative; width: 180px; height: 180px;
-          background: radial-gradient(circle, rgba(0, 242, 255, 0.1) 0%, transparent 70%);
-          border-radius: 50%; display: flex; flex-direction: column;
+          position: relative; width: 200px; height: 200px;
+          display: flex; flex-direction: column;
           justify-content: center; align-items: center; color: #00f2ff;
-          text-shadow: 0 0 10px #00f2ff; font-family: monospace;
+          text-shadow: 0 0 20px rgba(0, 242, 255, 0.8);
+          font-family: 'Inter', monospace;
         }
-        .percent { font-size: 2.5rem; font-weight: bold; }
-        .status-text { font-size: 0.6rem; letter-spacing: 4px; text-transform: uppercase; margin-top: 5px; }
-        @keyframes bootUp { 0% { transform: scale(0); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+        .percent-display { font-size: 3.5rem; font-weight: 900; letter-spacing: -2px; line-height: 1; }
+        .process-title { 
+          font-size: 0.7rem; letter-spacing: 5px; text-transform: uppercase; 
+          margin-top: 15px; font-weight: 500; opacity: 0.9;
+          background: rgba(0, 242, 255, 0.1); padding: 4px 12px; border-radius: 4px;
+        }
         @keyframes rotate { 100% { transform: rotate(360deg); } }
       `}</style>
       <div className="hud-container" ref={hudRef}>
         <div className="ring-outer"></div>
-        <div className="ring-middle"></div>
+        <div className="ring-inner"></div>
         <div className="core">
-          <div className="percent">{progress}%</div>
-          <div className="status-text">{log}</div>
+          <div className="percent-display">
+            {Math.floor(progress)}<span style={{fontSize: '1.5rem', marginLeft: '2px'}}>%</span>
+          </div>
+          <motion.div 
+            className="process-title"
+            key={getProcessText(progress)}
+            initial={{ opacity: 0, y: 5 }}
+            animate={{ opacity: 1, y: 0 }}
+          >
+            {getProcessText(progress)}
+          </motion.div>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 };
 
@@ -305,7 +298,7 @@ const BulkResultsView = ({ data, files, handleDownloadPDF, pdfLoading, handlePro
                 <span className={`row-pred ${item.prediction.includes('Day') ? 'day' : 'night'}`}>
                   {item.prediction}
                 </span>
-                <div className="action-buttons" style={{ display: 'flex', gap: '8px' }}>
+                <div className="action-buttons">
                   <button 
                     className="summarize-btn"
                     onClick={() => handleDownloadPDF(item, i)}
@@ -334,26 +327,40 @@ const BulkResultsView = ({ data, files, handleDownloadPDF, pdfLoading, handlePro
                     }}
                   >
                     {processingStatus[item.filename] === 'indexing' ? <Sparkles className="animate-spin" size={12} /> : processingStatus[item.filename] === 'indexed' ? <Bot size={12} /> : <Database size={12} />}
-                    {processingStatus[item.filename] === 'indexing' ? `Processing... ${Math.min(indexingProgress[item.filename] || 0, 99)}%` : processingStatus[item.filename] === 'indexed' ? 'Open Chat' : 'Process'}
+                    {processingStatus[item.filename] === 'indexing' ? (
+                      <span style={{ fontSize: '0.6rem' }}>ANALYSIS... {Math.min(indexingProgress[item.filename] || 0, 99)}%</span>
+                    ) : processingStatus[item.filename] === 'indexed' ? 'Open Chat' : 'Process'}
                   </button>
                   <button 
                     className={`summarize-btn ${expandedIndex === i && viewMode === 'narrative' ? 'active' : ''}`}
                     onClick={() => { setExpandedIndex(expandedIndex === i && viewMode === 'narrative' ? null : i); setViewMode('narrative'); }}
-                    style={{ background: expandedIndex === i && viewMode === 'narrative' ? 'var(--primary)' : 'rgba(255,255,255,0.05)' }}
+                    style={{ 
+                      background: expandedIndex === i && viewMode === 'narrative' ? 'var(--primary)' : 'rgba(255,255,255,0.08)',
+                      color: expandedIndex === i && viewMode === 'narrative' ? '#000' : 'var(--primary)',
+                      border: '1px solid var(--primary)'
+                    }}
                   >
                     Explanation
                   </button>
                   <button 
                     className={`summarize-btn ${expandedIndex === i && viewMode === 'spectrogram' ? 'active' : ''}`}
                     onClick={() => { setExpandedIndex(expandedIndex === i && viewMode === 'spectrogram' ? null : i); setViewMode('spectrogram'); }}
-                    style={{ background: expandedIndex === i && viewMode === 'spectrogram' ? 'var(--primary)' : 'rgba(255,255,255,0.05)' }}
+                    style={{ 
+                      background: expandedIndex === i && viewMode === 'spectrogram' ? 'var(--primary)' : 'rgba(255,255,255,0.08)',
+                      color: expandedIndex === i && viewMode === 'spectrogram' ? '#000' : 'var(--primary)',
+                      border: '1px solid var(--primary)'
+                    }}
                   >
-                    Visual Analytics
+                    Visual Charts
                   </button>
                   <button 
                     className={`summarize-btn ${expandedIndex === i && viewMode === 'therapy' ? 'active' : ''}`}
                     onClick={() => { setExpandedIndex(expandedIndex === i && viewMode === 'therapy' ? null : i); setViewMode('therapy'); }}
-                    style={{ background: expandedIndex === i && viewMode === 'therapy' ? 'var(--accent)' : 'rgba(245, 158, 11, 0.1)', color: expandedIndex === i && viewMode === 'therapy' ? '#0f1115' : 'var(--primary)' }}
+                    style={{ 
+                      background: expandedIndex === i && viewMode === 'therapy' ? 'var(--primary)' : 'rgba(255,255,255,0.08)',
+                      color: expandedIndex === i && viewMode === 'therapy' ? '#000' : 'var(--primary)',
+                      border: '1px solid var(--primary)'
+                    }}
                   >
                     Therapy Analysis
                   </button>
@@ -394,7 +401,7 @@ const BulkResultsView = ({ data, files, handleDownloadPDF, pdfLoading, handlePro
                           </div>
 
                           {vizMode === 'interactive' ? (
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', background: 'rgba(0,0,0,0.2)', padding: '1rem', borderRadius: '8px' }}>
+                            <div className="charts-grid">
                               <div>
                                 <span style={{ fontSize: '0.6rem', color: '#666', textTransform: 'uppercase', letterSpacing: '0.1em' }}>Pitch Contour (Hz)</span>
                                 <InteractivePitchChart data={item.pitch_contour_data} />
@@ -406,22 +413,14 @@ const BulkResultsView = ({ data, files, handleDownloadPDF, pdfLoading, handlePro
                             </div>
                           ) : (
                             <div style={{ background: '#111', padding: '1rem', borderRadius: '8px' }}>
-                               <img src={item.image_url} alt="Analysis PNG" style={{ width: '100%', height: 'auto', borderRadius: '4px' }} />
+                               <img src={`${API_BASE}${item.image_url}`} alt="Analysis PNG" style={{ width: '100%', height: 'auto', borderRadius: '4px' }} />
                             </div>
                           )}
 
                           <span className="label" style={{marginTop: '1.5rem', marginBottom: '0.5rem', display: 'block'}}>Acoustic Spectrogram Signature</span>
                           {item.spectrogram ? <SpectrogramView data={item.spectrogram} /> : <p className="narrative-text-small">Spectrogram data unavailable for this segment.</p>}
                           
-                          {item.image_url && (
-                            <div className="analysis-visualization" style={{ marginTop: '1.5rem' }}>
-                              <span className="label" style={{marginBottom: '0.5rem', display: 'block'}}>Visual Analysis Dashboard</span>
-                              <div className="image-container" style={{ textAlign: 'center', background: '#111', borderRadius: '8px', padding: '0.5rem' }}>
-                                <img src={item.image_url} alt="Raga Analysis Dashboard" style={{ maxWidth: '100%', height: 'auto', borderRadius: '4px', display: 'block', margin: '0 auto' }} />
-                                <a href={item.image_url} download={`analysis_${item.filename}.png`} style={{ display: 'inline-block', marginTop: '0.5rem', fontSize: '0.75rem', color: 'var(--primary)', textDecoration: 'none' }}>Download Static PNG</a>
-                              </div>
-                            </div>
-                          )}
+
                           
                           {item.detailed_features && (
                             <div style={{ transform: 'scale(0.95)', transformOrigin: 'top left', marginTop: '1rem' }}>
@@ -982,7 +981,7 @@ const App = () => {
   };
 
   return (
-    <div className="container">
+    <div className={`container ${chatOpen ? 'sidebar-open' : ''}`}>
       <header>
         <div className="lang-selector">
           <Globe size={16} />
@@ -1094,6 +1093,27 @@ const App = () => {
                 </motion.div>
               )}
             </AnimatePresence>
+
+            <div className="system-info-box" style={{ marginTop: '3.5rem', borderTop: '1px solid var(--border)', paddingTop: '2.5rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '3rem' }}>
+                <div style={{ textAlign: 'left' }}>
+                  <h3 style={{ color: 'var(--primary)', fontSize: '1rem', marginBottom: '0.8rem', display: 'flex', alignItems: 'center', gap: '10px', letterSpacing: '1px' }}>
+                    <Zap size={16} /> NEURAL-SYMBOLIC ENGINE
+                  </h3>
+                  <p style={{ fontSize: '0.8rem', color: 'var(--text-dim)', lineHeight: '1.6' }}>
+                    Raga Vision combines deep learning with traditional musicological rules to identify the <b>Temporal Cycle (Prahara)</b> of Indian Classical Music. Our system analyzes microtonal variations and swara distributions to determine the correct time of day for any performance.
+                  </p>
+                </div>
+                <div style={{ textAlign: 'left' }}>
+                  <h3 style={{ color: 'var(--primary)', fontSize: '1rem', marginBottom: '0.8rem', display: 'flex', alignItems: 'center', gap: '10px', letterSpacing: '1px' }}>
+                    <Heart size={16} /> THERAPEUTIC INSIGHTS
+                  </h3>
+                  <p style={{ fontSize: '0.8rem', color: 'var(--text-dim)', lineHeight: '1.6' }}>
+                    Beyond simple classification, the system maps the acoustic energy of the music to therapeutic wellness profiles. Receive detailed AI-driven narratives on the emotional landscape and cognitive impact of the analyzed raga.
+                  </p>
+                </div>
+              </div>
+            </div>
           </motion.div>
         )}
 
@@ -1438,7 +1458,7 @@ const App = () => {
                     </div>
                   ) : (
                     <div className="static-dash-view" style={{ background: '#111', borderRadius: '12px', overflow: 'hidden', border: '1px solid #333' }}>
-                      <img src={result.image_url} alt="Static Analysis Dashboard" style={{ width: '100%', display: 'block' }} />
+                      <img src={`${API_BASE}${result.image_url}`} alt="Static Analysis Dashboard" style={{ width: '100%', display: 'block' }} />
                     </div>
                   )}
                   
@@ -1473,21 +1493,23 @@ const App = () => {
 
                 <DetailedFeatureAnalysis features={result.detailed_features} />
 
-                {/* --- NEW: DETAILED VISUALIZATIONS --- */}
-                <div className="detailed-visuals-grid" style={{ marginTop: '1.5rem', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
-                  {result.pitch_contour_url && (
-                    <div className="visual-card card">
-                      <span className="label" style={{ marginBottom: '1rem', display: 'block' }}>Pitch Contour Analysis</span>
-                      <img src={result.pitch_contour_url} alt="Pitch Contour" style={{ width: '100%', borderRadius: '4px' }} />
-                    </div>
-                  )}
-                  {result.spectrogram_url && (
-                    <div className="visual-card card">
-                      <span className="label" style={{ marginBottom: '1rem', display: 'block' }}>Spectral Fingerprint</span>
-                      <img src={result.spectrogram_url} alt="Spectrogram" style={{ width: '100%', borderRadius: '4px' }} />
-                    </div>
-                  )}
-                </div>
+                {/* --- NEW: DETAILED VISUALIZATIONS (Only show if not in PNG mode) --- */}
+                {vizMode === 'interactive' && (
+                  <div className="detailed-visuals-grid" style={{ marginTop: '1.5rem', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
+                    {result.pitch_contour_url && (
+                      <div className="visual-card card">
+                        <span className="label" style={{ marginBottom: '1rem', display: 'block' }}>Pitch Contour Analysis</span>
+                        <img src={`${API_BASE}${result.pitch_contour_url}`} alt="Pitch Contour" style={{ width: '100%', borderRadius: '4px' }} />
+                      </div>
+                    )}
+                    {result.spectrogram_url && (
+                      <div className="visual-card card">
+                        <span className="label" style={{ marginBottom: '1rem', display: 'block' }}>Spectral Fingerprint</span>
+                        <img src={`${API_BASE}${result.spectrogram_url}`} alt="Spectrogram" style={{ width: '100%', borderRadius: '4px' }} />
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {/* Disclaimer */}
                 <div className="disclaimer-footer" style={{ marginTop: '2rem', padding: '1rem', borderTop: '1px solid rgba(255,255,255,0.05)', textAlign: 'center', opacity: 0.6 }}>
