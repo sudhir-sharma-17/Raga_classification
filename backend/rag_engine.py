@@ -46,7 +46,7 @@ class RagaChatEngine:
         
         # 2. CLIP Model Initialization (Hugging Face)
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
-        self.clip_model = SentenceTransformer('clip-ViT-B-32', device=self.device)
+        self.clip_model = SentenceTransformer('sentence-transformers/clip-ViT-B-32', device=self.device)
         print("[RAG] HF CLIP Model loaded.")
         
         # 3. VectorStores

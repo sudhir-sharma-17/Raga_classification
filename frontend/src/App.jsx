@@ -993,7 +993,7 @@ const App = () => {
           </select>
         </div>
         <span className="subtitle">Neuro-Symbolic Musicology</span>
-        <h1 className="main-title">RAGA VISION <span className="neural-text">BULK EDITION</span></h1>
+        <h1 className="main-title">RAGA VISION</h1>
       </header>
 
       {loading && <CyberLoader />}
