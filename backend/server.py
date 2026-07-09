@@ -15,14 +15,17 @@ from pdf_generator import generate_report_pdf
 from feedback import save_feedback
 from rag_engine import RagaChatEngine
 
+
 class FeedbackRequest(BaseModel):
     filename: str
     predicted_raga: str
     correct_raga: str
 
+
 class ChatRequest(BaseModel):
     question: str
     filename: Optional[str] = None
+
 
 class IndexPDFRequest(BaseModel):
     filename: str
@@ -72,7 +75,9 @@ def submit_feedback(request: FeedbackRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
+
 # ======================= RAG CHATBOT ENDPOINTS =======================
+
 
 @app.post("/index_pdf")
 def index_pdf(request: IndexPDFRequest):
@@ -82,7 +87,10 @@ def index_pdf(request: IndexPDFRequest):
     pdf_path = str(BASE_DIR / "static" / f"report_{stem}.pdf")
 
     if not os.path.exists(pdf_path):
-        raise HTTPException(status_code=404, detail=f"PDF report not found. Please download the PDF first.")
+        raise HTTPException(
+            status_code=404,
+            detail=f"PDF report not found. Please download the PDF first.",
+        )
 
     # Find related images
     image_paths = []
@@ -94,19 +102,19 @@ def index_pdf(request: IndexPDFRequest):
     result = rag_engine.index_pdf(pdf_path, filename=stem, image_paths=image_paths)
     return result
 
+
 @app.post("/chat")
 def chat(request: ChatRequest):
     """Query the RAG chatbot with a question about the analysis."""
     result = rag_engine.query(request.question, filename=request.filename)
     return result
 
+
 @app.get("/rag_status")
 def rag_status():
     """Check RAG engine status and chunk count."""
-    return {
-        "status": "active",
-        "total_chunks": rag_engine.get_chunk_count()
-    }
+    return {"status": "active", "total_chunks": rag_engine.get_chunk_count()}
+
 
 @app.post("/classify_bulk")
 def classify_bulk(files: List[UploadFile] = File(...), lang: str = "en"):
@@ -130,7 +138,11 @@ def classify_bulk(files: List[UploadFile] = File(...), lang: str = "en"):
 
             # Neural Inference - Ultra Fast Semantic-Acoustic Fusion
             res = neural_engine.analyze(
-                temp_path, duration=8, original_filename=file.filename, file_id=file_id, lang=lang
+                temp_path,
+                duration=8,
+                original_filename=file.filename,
+                file_id=file_id,
+                lang=lang,
             )
 
             # Clean up immediately for bulk
@@ -166,10 +178,14 @@ def classify_bulk(files: List[UploadFile] = File(...), lang: str = "en"):
                     "metadata": {"swaras": []},
                     "therapy": {
                         "recommendation": {"primary": "N/A", "secondary": []},
-                        "therapy_scores": {"calm_score": 0, "energy_score": 0, "focus_score": 0},
+                        "therapy_scores": {
+                            "calm_score": 0,
+                            "energy_score": 0,
+                            "focus_score": 0,
+                        },
                         "explanation": [],
                         "session_plan": [],
-                        "raga_metadata": None
+                        "raga_metadata": None,
                     },
                     "report": [f"Technical Error: {str(e)}"],
                     "pitch_contour_data": [],
@@ -184,6 +200,7 @@ def classify_bulk(files: List[UploadFile] = File(...), lang: str = "en"):
 class PDFRequest(BaseModel):
     data: Dict[str, Any]
 
+
 @app.post("/download_pdf")
 async def download_pdf(request: PDFRequest):
     try:
@@ -192,21 +209,24 @@ async def download_pdf(request: PDFRequest):
         stem = Path(filename).stem
         # Use BASE_DIR to ensure we point to the correct static folder
         pdf_path = BASE_DIR / "static" / f"report_{stem}.pdf"
-        
+
         generate_report_pdf(data, str(pdf_path))
-        
+
         return FileResponse(
-            str(pdf_path), 
-            media_type="application/pdf", 
-            filename=f"RagaVision_Report_{stem}.pdf"
+            str(pdf_path),
+            media_type="application/pdf",
+            filename=f"RagaVision_Report_{stem}.pdf",
         )
     except Exception as e:
         print(f"PDF Error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to generate PDF: {str(e)}")
 
+
 @app.post("/classify")
 def classify_audio(file: UploadFile = File(...), lang: str = "en"):
-    print(f"[SERVER] Received classification request for: {file.filename} in language {lang}")
+    print(
+        f"[SERVER] Received classification request for: {file.filename} in language {lang}"
+    )
     filename_lower = file.filename.lower()
     allowed_extensions = (
         ".wav",
@@ -237,14 +257,20 @@ def classify_audio(file: UploadFile = File(...), lang: str = "en"):
                 shutil.copyfileobj(file.file, buffer)
             try:
                 result = neural_engine.analyze(
-                    temp_path, original_filename=file.filename, file_id=file_id, lang=lang
+                    temp_path,
+                    original_filename=file.filename,
+                    file_id=file_id,
+                    lang=lang,
                 )
             except Exception:
                 # Fallback: check local day_ragas folder
                 local_path = str(BASE_DIR / "data" / "day_ragas" / file.filename)
                 if os.path.exists(local_path):
                     result = neural_engine.analyze(
-                        local_path, original_filename=file.filename, file_id=file_id, lang=lang
+                        local_path,
+                        original_filename=file.filename,
+                        file_id=file_id,
+                        lang=lang,
                     )
                 else:
                     raise
@@ -314,4 +340,5 @@ def classify_audio(file: UploadFile = File(...), lang: str = "en"):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("server:app", host="0.0.0.0", port=8001, reload=True)
+
+    uvicorn.run("server:app", host="0.0.0.0", port=int(os.environ.get("PORT", 8000)))
