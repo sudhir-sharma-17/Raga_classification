@@ -187,7 +187,7 @@ class RagaChatEngine:
         """Seed the engine with raga theory."""
         if self.text_store._collection.count() > 10: return
         try:
-            from raga_db import RAGA_DB_V3
+            from backend.raga_db import RAGA_DB_V3
             kb_docs = []
             SN = ["Sa", "re", "Re", "ga", "Ga", "Ma", "Ma'", "Pa", "dha", "Dha", "ni", "Ni"]
             for name, info in RAGA_DB_V3.items():

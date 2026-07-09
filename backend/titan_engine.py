@@ -4,8 +4,8 @@ import os
 import noisereduce as nr
 from fastdtw import fastdtw
 from scipy.spatial.distance import euclidean
-from scholar_listener import RAGA_DB_V3, SWARA_NAMES, estimate_tonic_advanced, refine_tonic_symbolic
-from audacity_loader import load_audacity_project
+from backend.scholar_listener import RAGA_DB_V3, SWARA_NAMES, estimate_tonic_advanced, refine_tonic_symbolic
+from backend.audacity_loader import load_audacity_project
 
 class RagaTitanV5:
     def __init__(self):

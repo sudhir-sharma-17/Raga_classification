@@ -102,7 +102,7 @@ def generate_therapy_explanation(features, scores):
     
     return explanations
 
-from raga_db import RAGA_DB_V3
+from backend.raga_db import RAGA_DB_V3
 
 RAGA_THERAPY_DB = {
     "Bhairav": {

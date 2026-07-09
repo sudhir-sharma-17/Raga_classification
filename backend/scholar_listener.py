@@ -37,7 +37,7 @@ warnings.filterwarnings("ignore")
 # ==============================================================================
 # Notes: Sa=0, re=1(k), Re=2, ga=3(k), Ga=4, Ma=5, Ma'=6(t), Pa=7, dha=8(k), Dha=9, ni=10(k), Ni=11
 # Notes: Sa=0, re=1(k), Re=2, ga=3(k), Ga=4, Ma=5, Ma'=6(t), Pa=7, dha=8(k), Dha=9, ni=10(k), Ni=11
-from raga_db import RAGA_DB_V3
+from backend.raga_db import RAGA_DB_V3
 
 
 SWARA_NAMES = ["Sa", "re", "Re", "ga", "Ga", "Ma", "Ma'", "Pa", "dha", "Dha", "ni", "Ni"]

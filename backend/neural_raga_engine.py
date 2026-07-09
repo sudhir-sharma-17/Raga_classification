@@ -4,16 +4,18 @@ import numpy as np
 import os
 from transformers import ClapModel, ClapProcessor
 from pathlib import Path
-from audacity_loader import load_audacity_project
-# Import symbolic logic from scholar_listener
-from scholar_listener import (
+from backend.audacity_loader import load_audacity_project
+from backend.scholar_listener import (
     RAGA_DB_V3, SWARA_NAMES, estimate_tonic_advanced, 
     refine_tonic_symbolic, score_raga_logic, transcribe_notes
 )
-from advanced_features import extract_all_features
-from therapy_engine import get_therapy_output
-from visualizer import plot_pitch_contour, plot_spectrogram, plot_full_dashboard
-
+from backend.advanced_features import extract_all_features
+from backend.therapy_engine import get_therapy_output
+from backend.visualizer import (
+    plot_pitch_contour,
+    plot_spectrogram,
+    plot_full_dashboard,
+)
 import sys
 # Resolve project root (one level above backend/)
 BASE_DIR = Path(__file__).parent.parent

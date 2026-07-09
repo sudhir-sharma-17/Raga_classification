@@ -9,11 +9,11 @@ import os
 import shutil
 import uuid
 from pathlib import Path
-from neural_raga_engine import HybridRagaVision
-from audacity_loader import load_audacity_project
-from pdf_generator import generate_report_pdf
-from feedback import save_feedback
-from rag_engine import RagaChatEngine
+from backend.neural_raga_engine import HybridRagaVision
+from backend.audacity_loader import load_audacity_project
+from backend.pdf_generator import generate_report_pdf
+from backend.feedback import save_feedback
+from backend.rag_engine import RagaChatEngine
 
 
 class FeedbackRequest(BaseModel):

@@ -1,4 +1,4 @@
-from pdf_generator import generate_report_pdf
+from backend.pdf_generator import generate_report_pdf
 import os
 
 data = {
