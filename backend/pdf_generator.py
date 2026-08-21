@@ -77,72 +77,145 @@ def generate_report_pdf(data, output_path):
     img_url = data.get('image_url')
     if img_url:
         img_name = os.path.basename(img_url)
-        img_path = os.path.join(os.path.dirname(__file__), "..", "static", img_name)
-        if not os.path.exists(img_path):
-             img_path = os.path.join(os.path.dirname(__file__), "static", img_name)
+        img_path_static = os.path.join(os.path.dirname(__file__), "static", img_name)
+        img_path_output = os.path.join(os.path.dirname(__file__), "output", img_name)
+        img_path_root_static = os.path.join(os.path.dirname(__file__), "..", "static", img_name)
+        img_path_root_output = os.path.join(os.path.dirname(__file__), "..", "output", img_name)
+        
+        img_path = None
+        if os.path.exists(img_path_static):
+            img_path = img_path_static
+        elif os.path.exists(img_path_output):
+            img_path = img_path_output
+        elif os.path.exists(img_path_root_static):
+            img_path = img_path_root_static
+        elif os.path.exists(img_path_root_output):
+            img_path = img_path_root_output
              
-        if os.path.exists(img_path):
+        if img_path and os.path.exists(img_path):
             pdf.set_font('helvetica', 'B', 10)
             pdf.set_text_color(128, 128, 128)
             pdf.cell(0, 8, "PITCH & SWARA NEURAL DASHBOARD", 0, 1, 'C')
             pdf.image(img_path, x=10, w=190)
-            pdf.ln(10)
+            pdf.ln(5)
 
     # --- PAGE 2: THERAPEUTIC ANALYSIS & WELLNESS ---
     pdf.add_page()
     pdf.set_font('helvetica', 'B', 14)
     pdf.set_text_color(176, 141, 72)
-    pdf.cell(0, 15, "THERAPY & WELLNESS PROFILE", 0, 1, 'C')
-    pdf.ln(5)
+    pdf.cell(0, 10, "THERAPY & WELLNESS PROFILE", 0, 1, 'C')
+    pdf.ln(3)
 
     therapy = data.get('therapy') or data.get('therapy_recommendation') or {}
-    scores = therapy.get('therapy_scores', {})
     
-    # Render Scores
-    if scores:
+    # Render Wellness Profile
+    wellness = therapy.get('wellness_profile') or {}
+    if wellness:
+        start_y = pdf.get_y()
         pdf.set_fill_color(245, 245, 245)
-        pdf.rect(10, 40, 190, 25, 'F')
-        pdf.set_xy(15, 45)
+        pdf.rect(10, start_y, 190, 24, 'F')
+        pdf.set_xy(15, start_y + 2)
         pdf.set_font('helvetica', 'B', 10)
+        pdf.set_text_color(176, 141, 72)
+        pdf.cell(0, 5, "MUSIC WELLNESS PROFILE METRICS", 0, 1)
+        
+        pdf.set_font('helvetica', '', 9)
         pdf.set_text_color(0, 0, 0)
-        pdf.cell(60, 10, f"Calm Score: {scores.get('calm_score', 0)}/10", 0, 0)
-        pdf.cell(60, 10, f"Energy Score: {scores.get('energy_score', 0)}/10", 0, 0)
-        pdf.cell(60, 10, f"Focus Score: {scores.get('focus_score', 0)}/10", 0, 1)
-    
-    # Recommendation Box
+        pdf.cell(60, 5, f"Calmness: {wellness.get('calmness', 0)}/10", 0, 0)
+        pdf.cell(60, 5, f"Energy: {wellness.get('energy', 0)}/10", 0, 0)
+        pdf.cell(60, 5, f"Focus: {wellness.get('focus', 0)}/10", 0, 1)
+        
+        pdf.set_x(15)
+        pdf.cell(60, 5, f"Brightness: {wellness.get('brightness', 0)}/10", 0, 0)
+        pdf.cell(60, 5, f"Stability: {wellness.get('stability', 0)}/10", 0, 0)
+        pdf.cell(60, 5, f"Complexity: {wellness.get('complexity', 0)}/10", 0, 1)
+        pdf.set_y(start_y + 24)
+        pdf.ln(3)
+    else:
+        scores = therapy.get('therapy_scores', {})
+        if scores:
+            start_y = pdf.get_y()
+            pdf.set_fill_color(245, 245, 245)
+            pdf.rect(10, start_y, 190, 15, 'F')
+            pdf.set_xy(15, start_y + 2)
+            pdf.set_font('helvetica', 'B', 10)
+            pdf.set_text_color(0, 0, 0)
+            pdf.cell(60, 10, f"Calm Score: {scores.get('calm_score', 0)}/10", 0, 0)
+            pdf.cell(60, 10, f"Energy Score: {scores.get('energy_score', 0)}/10", 0, 0)
+            pdf.cell(60, 10, f"Focus Score: {scores.get('focus_score', 0)}/10", 0, 1)
+            pdf.set_y(start_y + 15)
+            pdf.ln(3)
+
+    # Render Temporal Suitability
+    temporal = therapy.get('temporal_suitability') or {}
+    if temporal:
+        start_y = pdf.get_y()
+        pdf.set_fill_color(245, 245, 245)
+        pdf.rect(10, start_y, 190, 16, 'F')
+        pdf.set_xy(15, start_y + 2)
+        pdf.set_font('helvetica', 'B', 10)
+        pdf.set_text_color(176, 141, 72)
+        pdf.cell(0, 5, "TEMPORAL SUITABILITY DISTRIBUTION", 0, 1)
+        
+        pdf.set_font('helvetica', '', 8)
+        pdf.set_text_color(0, 0, 0)
+        items = [f"{k.replace('_', ' ').title()}: {v}%" for k, v in temporal.items()]
+        pdf.cell(0, 5, " | ".join(items), 0, 1)
+        pdf.set_y(start_y + 16)
+        pdf.ln(3)
+
+    # Primary Recommendation Box
     rec = therapy.get('recommendation', {})
-    pdf.ln(10)
+    start_y = pdf.get_y()
     pdf.set_draw_color(176, 141, 72)
     pdf.set_line_width(0.5)
-    pdf.rect(10, 75, 190, 40)
-    pdf.set_xy(15, 80)
-    pdf.set_font('helvetica', 'B', 11)
+    pdf.rect(10, start_y, 190, 30)
+    pdf.set_xy(15, start_y + 2)
+    pdf.set_font('helvetica', 'B', 10)
     pdf.set_text_color(176, 141, 72)
-    pdf.cell(0, 10, "PRIMARY RECOMMENDATION:", 0, 1)
-    pdf.set_font('helvetica', 'B', 13)
+    pdf.cell(0, 5, "PRIMARY CLINICAL RECOMMENDATION:", 0, 1)
+    pdf.set_font('helvetica', 'B', 12)
     pdf.set_text_color(0, 0, 0)
     pdf.set_x(15)
-    pdf.multi_cell(180, 8, clean_text(rec.get('primary', 'N/A')))
-    
-    # Secondary Recommendations
-    pdf.set_xy(10, 125)
-    pdf.set_font('helvetica', 'B', 11)
+    pdf.multi_cell(180, 6, clean_text(rec.get('primary', 'N/A')))
+    pdf.set_y(start_y + 30)
+    pdf.ln(3)
+
+    # Session Plan & Alternatives
+    y_cols_start = pdf.get_y()
+    pdf.set_xy(10, y_cols_start)
+    pdf.set_font('helvetica', 'B', 10)
     pdf.set_text_color(176, 141, 72)
-    pdf.cell(90, 10, "SECONDARY RECOMMENDATIONS:", 0, 0)
-    pdf.cell(0, 10, "THERAPEUTIC EXPLANATION:", 0, 1)
+    pdf.cell(90, 6, "SUGGESTED SESSION PLAN:", 0, 0)
+    pdf.cell(0, 6, "ALTERNATIVE RECOMMENDATIONS:", 0, 1)
     
-    y_start = pdf.get_y()
-    pdf.set_font('helvetica', '', 9)
+    y_content_start = pdf.get_y()
+    pdf.set_font('helvetica', '', 8.5)
     pdf.set_text_color(80, 80, 80)
+    
+    session_plan = therapy.get('session_plan', [])
+    session_text = "\n".join([f"Step {idx+1}: {step}" for idx, step in enumerate(session_plan)])
+    pdf.multi_cell(90, 5, clean_text(session_text if session_plan else "None"))
+    y_plan_end = pdf.get_y()
+    
+    pdf.set_xy(105, y_content_start)
     sec = rec.get('secondary', [])
     sec_text = "\n".join([f"- {s}" for s in sec])
-    pdf.multi_cell(90, 6, clean_text(sec_text if sec else "None"))
+    pdf.multi_cell(95, 5, clean_text(sec_text if sec else "None"))
+    y_alt_end = pdf.get_y()
     
-    y_sec = pdf.get_y()
-    pdf.set_xy(105, y_start)
+    # Position below the columns
+    pdf.set_y(max(y_plan_end, y_alt_end) + 4)
+    
+    # Therapeutic explanation
+    pdf.set_font('helvetica', 'B', 10)
+    pdf.set_text_color(176, 141, 72)
+    pdf.cell(0, 6, "THERAPEUTIC EXPLANATION & ACTION MECHANISM:", 0, 1)
+    pdf.set_font('helvetica', '', 8.5)
+    pdf.set_text_color(80, 80, 80)
     exp = therapy.get('explanation', [])
     exp_text = "\n".join([f"- {e}" for e in exp])
-    pdf.multi_cell(95, 6, clean_text(exp_text if exp else "None"))
+    pdf.multi_cell(0, 5, clean_text(exp_text if exp else "None"))
     
     # --- PAGE 3: DETAILED FEATURE ANALYSIS ---
     pdf.add_page()
@@ -225,11 +298,24 @@ def generate_report_pdf(data, output_path):
     pdf.ln(10)
     
     # Spectrogram if available
-    spec_data = data.get('spectrogram')
-    if spec_data:
-         # Note: Generating image from spec_data array is complex here, 
-         # but we can show the Swara chips
-         pass
+    spec_url = data.get('spectrogram_url')
+    if spec_url:
+        spec_name = os.path.basename(spec_url)
+        spec_path_static = os.path.join(os.path.dirname(__file__), "static", spec_name)
+        spec_path_root_static = os.path.join(os.path.dirname(__file__), "..", "static", spec_name)
+        
+        spec_path = None
+        if os.path.exists(spec_path_static):
+            spec_path = spec_path_static
+        elif os.path.exists(spec_path_root_static):
+            spec_path = spec_path_root_static
+            
+        if spec_path and os.path.exists(spec_path):
+            pdf.set_font('helvetica', 'B', 10)
+            pdf.set_text_color(128, 128, 128)
+            pdf.cell(0, 8, "SPECTROGRAM NEURAL RESISTANCE MAP", 0, 1, 'C')
+            pdf.image(spec_path, x=10, w=190)
+            pdf.ln(5)
          
     # Swara Chips section
     pdf.set_font('helvetica', 'B', 11)

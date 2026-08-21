@@ -4,7 +4,7 @@ import os
 
 def get_chunks(file_path):
     """
-    Load audio with librosa (sr=22050), skip first 10 seconds,
+    Load audio with librosa (sr=22050), skip first 10 seconds (if duration allows),
     and split into 20-second chunks with a 10-second step (overlap).
     
     Args:
@@ -22,10 +22,17 @@ def get_chunks(file_path):
         print(f"Error: File '{file_path}' not found.")
         return []
 
-    # Load audio
-    # librosa.load 'offset' parameter skips the beginning of the file
+    # Check duration first to dynamically adjust offset
     try:
-        y, _ = librosa.load(file_path, sr=sr, offset=skip_sec)
+        duration = librosa.get_duration(path=file_path)
+    except Exception:
+        duration = 0
+
+    offset = skip_sec if duration >= 30 else 0
+
+    # Load audio
+    try:
+        y, _ = librosa.load(file_path, sr=sr, offset=offset)
     except Exception as e:
         print(f"Error loading {file_path}: {e}")
         return []
@@ -36,11 +43,14 @@ def get_chunks(file_path):
     
     chunks = []
     
-    # Extract chunks using a sliding window
-    # We only take full 20-second chunks
-    for i in range(0, len(y) - chunk_samples + 1, step_samples):
-        chunk = y[i : i + chunk_samples]
-        chunks.append(chunk)
+    # If the remaining audio is short, treat it as a single chunk
+    if len(y) > 0 and len(y) < chunk_samples:
+        chunks.append(y)
+    else:
+        # Extract chunks using a sliding window
+        for i in range(0, len(y) - chunk_samples + 1, step_samples):
+            chunk = y[i : i + chunk_samples]
+            chunks.append(chunk)
         
     return chunks
 

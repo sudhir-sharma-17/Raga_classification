@@ -22,3 +22,5 @@ backend/vectorstore*/
 *.pdf
 *.png
 *.db
+raga_classification/
+

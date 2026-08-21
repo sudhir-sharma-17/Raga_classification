@@ -27,7 +27,9 @@ import {
   Send,
   X,
   Bot,
-  Database
+  Database,
+  Sun,
+  Moon
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -250,7 +252,7 @@ const CyberLoader = () => {
   );
 };
 
-const BulkResultsView = ({ data, files, handleDownloadPDF, pdfLoading, handleProcessPDF, processingStatus, indexingProgress, chunkCount, openChat }) => {
+const BulkResultsView = ({ data, files, handleDownloadPDF, pdfLoading, handleProcessPDF, processingStatus, indexingProgress, chunkCount, openChat, onReset }) => {
   const dayCount = data.filter(r => r.prediction.includes('Day')).length;
   const nightCount = data.filter(r => r.prediction.includes('Night')).length;
   const [expandedIndex, setExpandedIndex] = useState(null);
@@ -259,6 +261,30 @@ const BulkResultsView = ({ data, files, handleDownloadPDF, pdfLoading, handlePro
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="bulk-view">
+      {onReset && (
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1.5rem' }}>
+          <button
+            onClick={onReset}
+            style={{
+              padding: '0.6rem 1.2rem',
+              background: 'linear-gradient(135deg, var(--primary) 0%, #d4af37 100%)',
+              color: 'black',
+              border: 'none',
+              borderRadius: '10px',
+              fontWeight: '800',
+              fontSize: '0.85rem',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              boxShadow: '0 4px 12px rgba(245, 158, 11, 0.2)',
+              transition: 'all 0.3s ease'
+            }}
+          >
+            <Music size={16} /> Upload Another File
+          </button>
+        </div>
+      )}
       <div className="bulk-stats">
         <div className="stat-card card">
           <span className="label">Day Audio</span>
@@ -949,6 +975,49 @@ const App = () => {
   const [indexingProgress, setIndexingProgress] = useState({}); // { [filename]: number }
   const [chunkCount, setChunkCount] = useState(0);
 
+  const [theme, setTheme] = useState(() => {
+    return localStorage.getItem('raga-theme') || 'dark';
+  });
+
+  useEffect(() => {
+    const root = document.documentElement;
+    if (theme === 'dark') {
+      root.classList.add('dark');
+      root.classList.remove('light');
+    } else {
+      root.classList.add('light');
+      root.classList.remove('dark');
+    }
+    localStorage.setItem('raga-theme', theme);
+  }, [theme]);
+
+  const [assistantIntent, setAssistantIntent] = useState('');
+  const [assistantQuery, setAssistantQuery] = useState('');
+  const [assistantResult, setAssistantResult] = useState(null);
+  const [assistantLoading, setAssistantLoading] = useState(false);
+  const [assistantError, setAssistantError] = useState(null);
+  const [activeModal, setActiveModal] = useState(null); // 'assistant' | 'upload' | 'record' | null
+
+  const handleRecommend = async () => {
+    if (!assistantIntent && !assistantQuery.trim()) {
+      setAssistantError('Please select a mood preset or describe what you want.');
+      return;
+    }
+    setAssistantLoading(true);
+    setAssistantError(null);
+    setAssistantResult(null);
+    try {
+      const response = await axios.post(`${API_BASE}/recommend`, {
+        intent: assistantIntent,
+        query: assistantQuery
+      });
+      setAssistantResult(response.data);
+    } catch (err) {
+      setAssistantError(err.response?.data?.detail || 'Inference server error');
+    }
+    setAssistantLoading(false);
+  };
+
   const handleProcessPDF = async (data = result) => {
     if (!data?.filename) return;
     const fname = data.filename;
@@ -1087,6 +1156,7 @@ const App = () => {
         const response = await axios.post(`${API_BASE}/classify?lang=${lang}`, formData);
         setResult(response.data);
         setFeedbackSaved(false);
+        setActiveModal(null);
       } catch (err) {
         setError('Inference Error: ' + (err.response?.data?.detail || 'Server Down'));
       }
@@ -1095,6 +1165,7 @@ const App = () => {
       try {
         const response = await axios.post(`${API_BASE}/classify_bulk?lang=${lang}`, formData);
         setBulkResults(response.data.results);
+        setActiveModal(null);
       } catch (err) {
         const detail = err.response?.data?.detail || err.message;
         setError(`Bulk Analysis Failed: ${detail}`);
@@ -1106,139 +1177,681 @@ const App = () => {
   return (
     <div className={`container ${chatOpen ? 'sidebar-open' : ''}`}>
       <header>
-        <div className="lang-selector">
-          <Globe size={16} />
-          <select className="lang-select" value={lang} onChange={(e) => setLang(e.target.value)}>
-            <option value="en">EN</option>
-            <option value="hi">हिन्दी</option>
-            <option value="mr">मराठी</option>
-            <option value="ta">தமிழ்</option>
-          </select>
+        <div style={{ position: 'absolute', top: '2rem', right: '2rem', display: 'flex', alignItems: 'center', gap: '0.75rem', zIndex: 100 }}>
+          {/* Theme Toggle Button */}
+          <button
+            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+            style={{
+              background: 'rgba(255, 255, 255, 0.05)',
+              border: '1px solid var(--border)',
+              borderRadius: '12px',
+              padding: '0.5rem 0.75rem',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              color: 'var(--text-h)',
+              transition: 'all 0.2s ease',
+              height: '38px',
+              boxSizing: 'border-box'
+            }}
+            title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+          >
+            {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
+          </button>
+
+          {/* Language Selector */}
+          <div className="lang-selector" style={{ position: 'static' }}>
+            <Globe size={16} />
+            <select className="lang-select" value={lang} onChange={(e) => setLang(e.target.value)}>
+              <option value="en">EN</option>
+              <option value="hi">हिन्दी</option>
+              <option value="mr">मराठी</option>
+              <option value="ta">தமிழ்</option>
+            </select>
+          </div>
         </div>
-        <span className="subtitle">Neuro-Symbolic Musicology</span>
-        <h1 className="main-title">RAGA VISION</h1>
+        <span className="subtitle" style={{ letterSpacing: '0.4rem', fontWeight: 800, fontSize: '0.75rem' }}>Neuro-Symbolic Musicology</span>
+        <h1 className="main-title" style={{
+          background: theme === 'dark' 
+            ? 'linear-gradient(135deg, var(--primary) 0%, #ffffff 100%)' 
+            : 'linear-gradient(135deg, var(--primary) 0%, #0f172a 100%)',
+          WebkitBackgroundClip: 'text',
+          WebkitTextFillColor: 'transparent',
+          fontWeight: 950,
+          letterSpacing: '-0.03em',
+          textShadow: theme === 'dark' 
+            ? '0 0 40px rgba(245, 158, 11, 0.15)' 
+            : '0 0 20px rgba(245, 158, 11, 0.05)',
+          marginBottom: '1rem',
+          marginTop: '1rem'
+        }}>
+          RAGA VISION
+        </h1>
       </header>
 
       {loading && <CyberLoader />}
 
       <div className="main-layout">
         {!result && !bulkResults && (
-          <motion.div className="card glass-card" layout>
-            <div className="tabs-header">
-              <button 
-                className={`tab-btn ${activeTab === 'upload' ? 'active' : ''}`}
-                onClick={() => setActiveTab('upload')}
-              >
-                Upload File
-              </button>
-              <button 
-                className={`tab-btn ${activeTab === 'record' ? 'active' : ''}`}
-                onClick={() => setActiveTab('record')}
-              >
-                Record Live
-              </button>
+          <>
+            <div className="home-dashboard-grid">
+              {/* Card 1: Music Recommendation Assistant Teaser */}
+              <div className="home-dashboard-col">
+                <div 
+                  className="card glass-card teaser-card"
+                  onClick={() => setActiveModal('assistant')}
+                  style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '1rem', padding: '2rem' }}
+                >
+                  <div style={{
+                    background: 'rgba(245, 158, 11, 0.1)',
+                    borderRadius: '50%',
+                    width: '56px',
+                    height: '56px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    border: '1px solid rgba(245, 158, 11, 0.25)',
+                    boxShadow: '0 0 15px rgba(245, 158, 11, 0.1)'
+                  }}>
+                    <Sparkles size={26} style={{ color: 'var(--primary)' }} />
+                  </div>
+                  <h3 style={{ margin: 0, color: 'var(--accent)', fontSize: '1.15rem', fontWeight: 850, letterSpacing: '0.03em', textTransform: 'uppercase' }}>
+                    Music Recommendation Assistant
+                  </h3>
+                  <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--text-dim)', lineHeight: '1.4', padding: '0 0.5rem' }}>
+                    Describe your listening mood or choose presets to get classical raga recommendations.
+                  </p>
+                </div>
+              </div>
+
+              {/* Card 2: Upload File Teaser */}
+              <div className="home-dashboard-col">
+                <div 
+                  className="card glass-card teaser-card"
+                  onClick={() => setActiveModal('upload')}
+                  style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '1rem', padding: '2rem' }}
+                >
+                  <div style={{
+                    background: 'rgba(245, 158, 11, 0.1)',
+                    borderRadius: '50%',
+                    width: '56px',
+                    height: '56px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    border: '1px solid rgba(245, 158, 11, 0.25)',
+                    boxShadow: '0 0 15px rgba(245, 158, 11, 0.1)'
+                  }}>
+                    <Music size={26} style={{ color: 'var(--primary)' }} />
+                  </div>
+                  <h3 style={{ margin: 0, color: 'var(--accent)', fontSize: '1.15rem', fontWeight: 850, letterSpacing: '0.03em', textTransform: 'uppercase' }}>
+                    Upload File
+                  </h3>
+                  <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--text-dim)', lineHeight: '1.4', padding: '0 0.5rem' }}>
+                    Select or drag-and-drop WAV, MP3, or FLAC audio files to perform deep swara extraction.
+                  </p>
+                </div>
+              </div>
+
+              {/* Card 3: Record Live Teaser */}
+              <div className="home-dashboard-col">
+                <div 
+                  className="card glass-card teaser-card"
+                  onClick={() => setActiveModal('record')}
+                  style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '1rem', padding: '2rem' }}
+                >
+                  <div style={{
+                    background: 'rgba(245, 158, 11, 0.1)',
+                    borderRadius: '50%',
+                    width: '56px',
+                    height: '56px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    border: '1px solid rgba(245, 158, 11, 0.25)',
+                    boxShadow: '0 0 15px rgba(245, 158, 11, 0.1)'
+                  }}>
+                    <Mic size={26} style={{ color: 'var(--primary)' }} />
+                  </div>
+                  <h3 style={{ margin: 0, color: 'var(--accent)', fontSize: '1.15rem', fontWeight: 850, letterSpacing: '0.03em', textTransform: 'uppercase' }}>
+                    Record Live
+                  </h3>
+                  <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--text-dim)', lineHeight: '1.4', padding: '0 0.5rem' }}>
+                    Sing or play an instrument directly into your microphone for real-time temporal suitability maps.
+                  </p>
+                </div>
+              </div>
             </div>
 
-            {activeTab === 'upload' ? (
-              <div 
-                className="upload-zone"
-                onDragOver={(e) => e.preventDefault()}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  setFiles(Array.from(e.dataTransfer.files));
-                }}
-                onClick={() => document.getElementById('fileInput').click()}
-              >
-                <div className="upload-icon">
-                  <Music size={64} strokeWidth={1.5} />
-                </div>
-                <h2 className="upload-title">Drop your audio here</h2>
-                <p className="upload-subtitle">WAV, MP3, or FLAC (Max 20MB)</p>
-                <input 
-                  id="fileInput"
-                  type="file" 
-                  style={{ display: 'none' }} 
-                  onChange={(e) => setFiles(Array.from(e.target.files))}
-                  multiple
-                />
-              </div>
-            ) : (
-              <div className="recording-tab">
-                <div className="record-timer">
-                  {Math.floor(recordTime / 60)}:{(recordTime % 60).toString().padStart(2, '0')}
-                </div>
-                <button 
-                  className={`mic-btn ${isRecording ? 'recording' : ''}`}
-                  onClick={isRecording ? stopRecording : startRecording}
-                >
-                  <Mic size={48} />
-                </button>
-                <p className="upload-subtitle">
-                  {isRecording ? "Recording Swaras..." : "Click to start session"}
+            {/* Bottom Info Section: Neural-Symbolic Engine & Therapeutic Insights */}
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))',
+              gap: '2rem',
+              marginTop: '1.5rem',
+              marginBottom: '3rem',
+              width: '100%'
+            }}>
+              <div style={{ 
+                background: 'rgba(0, 0, 0, 0.15)',
+                padding: '2rem',
+                borderRadius: '24px',
+                border: '1px solid rgba(255, 255, 255, 0.05)',
+                textAlign: 'left',
+                boxShadow: '0 10px 30px rgba(0,0,0,0.2)'
+              }}>
+                <h3 style={{ color: 'var(--primary)', fontSize: '1.15rem', fontWeight: 800, marginBottom: '0.8rem', display: 'flex', alignItems: 'center', gap: '10px', letterSpacing: '1px', textTransform: 'uppercase' }}>
+                  <Zap size={18} /> NEURAL-SYMBOLIC ENGINE
+                </h3>
+                <p style={{ fontSize: '0.9rem', color: 'var(--text-dim)', lineHeight: '1.7', margin: 0 }}>
+                  Raga Vision combines deep learning with traditional musicological rules to identify the <b>Temporal Cycle (Prahara)</b> of Indian Classical Music. Our system analyzes microtonal variations and swara distributions to determine the correct time of day for any performance.
                 </p>
-                {files && files[0]?.name === 'live_recording.wav' && (
-                  <div className="file-info">
-                    <History size={18} />
-                    <span>Live Recording Ready</span>
-                    <button className="reset-btn" onClick={() => setFiles([])}>Reset</button>
+              </div>
+
+              <div style={{ 
+                background: 'rgba(0, 0, 0, 0.15)',
+                padding: '2rem',
+                borderRadius: '24px',
+                border: '1px solid rgba(255, 255, 255, 0.05)',
+                textAlign: 'left',
+                boxShadow: '0 10px 30px rgba(0,0,0,0.2)'
+              }}>
+                <h3 style={{ color: 'var(--primary)', fontSize: '1.15rem', fontWeight: 800, marginBottom: '0.8rem', display: 'flex', alignItems: 'center', gap: '10px', letterSpacing: '1px', textTransform: 'uppercase' }}>
+                  <Heart size={18} /> THERAPEUTIC INSIGHTS
+                </h3>
+                <p style={{ fontSize: '0.9rem', color: 'var(--text-dim)', lineHeight: '1.7', margin: 0 }}>
+                  Beyond simple classification, the system maps the acoustic energy of the music to therapeutic wellness profiles. Receive detailed AI-driven narratives on the emotional landscape and cognitive impact of the analyzed raga.
+                </p>
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* INTERACTIVE FLOATING MODAL OVERLAYS */}
+        <AnimatePresence>
+          {activeModal && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              style={{
+                position: 'fixed',
+                top: 0,
+                left: 0,
+                width: '100vw',
+                height: '100vh',
+                background: 'rgba(0, 0, 0, 0.75)',
+                backdropFilter: 'blur(10px)',
+                zIndex: 2000,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '2rem',
+                boxSizing: 'border-box'
+              }}
+              onClick={() => setActiveModal(null)}
+            >
+              <motion.div
+                initial={{ scale: 0.95, y: 15 }}
+                animate={{ scale: 1, y: 0 }}
+                exit={{ scale: 0.95, y: 15 }}
+                transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+                style={{
+                  background: theme === 'dark' ? 'rgba(23, 23, 23, 0.85)' : 'rgba(255, 255, 255, 0.9)',
+                  border: '1px solid rgba(245, 158, 11, 0.2)',
+                  borderRadius: '32px',
+                  width: '100%',
+                  maxWidth: activeModal === 'assistant' ? '920px' : '560px',
+                  maxHeight: '90vh',
+                  overflowY: 'auto',
+                  padding: '2.5rem',
+                  position: 'relative',
+                  boxShadow: '0 30px 60px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.05)',
+                  boxSizing: 'border-box'
+                }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                {/* Close Button */}
+                <button
+                  onClick={() => setActiveModal(null)}
+                  style={{
+                    position: 'absolute',
+                    top: '1.5rem',
+                    right: '1.5rem',
+                    background: 'rgba(255,255,255,0.05)',
+                    border: '1px solid var(--border)',
+                    borderRadius: '50%',
+                    width: '36px',
+                    height: '36px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                    color: 'var(--text-h)',
+                    transition: 'all 0.2s ease',
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'}
+                  onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
+                >
+                  <X size={16} />
+                </button>
+
+                {/* MODAL CONTENT BY TYPE */}
+                {activeModal === 'assistant' && (
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', marginBottom: '1.25rem' }}>
+                      <div style={{
+                        background: 'rgba(245, 158, 11, 0.1)',
+                        borderRadius: '12px',
+                        width: '42px',
+                        height: '42px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        border: '1px solid rgba(245, 158, 11, 0.2)'
+                      }}>
+                        <Sparkles size={20} style={{ color: 'var(--primary)' }} />
+                      </div>
+                      <h2 style={{ margin: 0, color: 'var(--accent)', fontSize: '1.35rem', fontWeight: 850, letterSpacing: '0.05em', textTransform: 'uppercase' }}>Music Recommendation Assistant</h2>
+                    </div>
+                    
+                    <p style={{ color: 'var(--text-main)', fontSize: '0.98rem', marginBottom: '1.5rem', fontWeight: 500, textAlign: 'left' }}>
+                      Select a preset mood or type a custom request to discover classical ragas matched to your listening intent.
+                    </p>
+
+                    {/* Preset buttons */}
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.6rem', marginBottom: '1.5rem' }}>
+                      {[
+                        { id: 'relax', label: 'Relax' },
+                        { id: 'meditate', label: 'Meditate' },
+                        { id: 'study', label: 'Study' },
+                        { id: 'sleep', label: 'Sleep Preparation' },
+                        { id: 'focus', label: 'Improve Focus' },
+                        { id: 'morning', label: 'Morning Listening' },
+                        { id: 'evening', label: 'Evening Listening' },
+                        { id: 'explore', label: 'Explore Music' }
+                      ].map(item => (
+                        <button
+                          key={item.id}
+                          className={`preset-chip ${assistantIntent === item.id ? 'active' : ''}`}
+                          onClick={() => {
+                            setAssistantIntent(item.id);
+                            setAssistantError(null);
+                          }}
+                        >
+                          {item.label}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Text Area */}
+                    <div style={{ marginBottom: '1.5rem' }}>
+                      <textarea
+                        className="chat-input"
+                        style={{ 
+                          width: '100%', 
+                          minHeight: '90px', 
+                          padding: '1rem', 
+                          borderRadius: '16px', 
+                          fontSize: '1rem', 
+                          background: 'rgba(0, 0, 0, 0.25)', 
+                          color: 'var(--text-main)', 
+                          border: '1px solid rgba(176, 141, 72, 0.2)', 
+                          resize: 'vertical',
+                          lineHeight: '1.5',
+                          outline: 'none',
+                          boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.2)',
+                          transition: 'border-color 0.2s ease'
+                        }}
+                        onFocus={(e) => e.target.style.borderColor = 'var(--primary)'}
+                        onBlur={(e) => e.target.style.borderColor = 'rgba(176, 141, 72, 0.2)'}
+                        value={assistantQuery}
+                        onChange={(e) => {
+                          setAssistantQuery(e.target.value);
+                          setAssistantError(null);
+                        }}
+                        placeholder="Or describe what you are looking for: e.g. I want something peaceful for the evening..."
+                      />
+                    </div>
+
+                    {/* Action Button */}
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '1rem' }}>
+                      <button 
+                        className="recommend-btn"
+                        onClick={handleRecommend}
+                        disabled={assistantLoading || (!assistantIntent && !assistantQuery.trim())}
+                        style={{ 
+                          opacity: (assistantLoading || (!assistantIntent && !assistantQuery.trim())) ? 0.5 : 1
+                        }}
+                      >
+                        {assistantLoading ? 'Finding recommendations...' : 'Recommend Music'}
+                      </button>
+                    </div>
+
+                    {assistantError && (
+                      <div style={{ color: '#ff4d4d', fontSize: '0.85rem', marginTop: '1rem', background: 'rgba(255, 77, 77, 0.08)', padding: '0.6rem 1rem', borderRadius: '8px', border: '1px solid rgba(255, 77, 77, 0.2)', textAlign: 'left' }}>
+                        ⚠️ {assistantError}
+                      </div>
+                    )}
+
+                    {/* Recommendation Display */}
+                    {assistantResult && (
+                      <motion.div 
+                        initial={{ opacity: 0, y: 15 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        style={{ marginTop: '2rem', borderTop: '1px solid rgba(255, 255, 255, 0.08)', paddingTop: '2rem' }}
+                      >
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '2rem' }}>
+                          
+                          {/* Primary recommendation panel */}
+                          <div className="recommendation-panel">
+                            <div style={{ marginBottom: '2rem' }}>
+                              <span className="label" style={{ display: 'block', marginBottom: '0.75rem', color: 'var(--accent)', fontWeight: 700, fontSize: '0.75rem', letterSpacing: '0.1em', textTransform: 'uppercase', textAlign: 'left' }}>Primary Recommendation</span>
+                              <div style={{ 
+                                background: 'rgba(0, 0, 0, 0.2)', 
+                                padding: '1.5rem', 
+                                borderRadius: '20px', 
+                                border: '1px solid rgba(176, 141, 72, 0.25)', 
+                                boxShadow: '0 8px 32px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.05)'
+                              }}>
+                                <div style={{ fontSize: '1.4rem', fontWeight: 900, color: 'var(--primary)', marginBottom: '1rem', borderBottom: '1px solid rgba(255,255,255,0.06)', paddingBottom: '0.5rem', textAlign: 'left' }}>
+                                  {assistantResult.primary_recommendation.category}
+                                </div>
+                                
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem', fontSize: '0.85rem', color: 'var(--text-main)' }}>
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.02)', paddingBottom: '0.3rem' }}>
+                                    <span style={{ color: 'var(--text-dim)' }}>Compatibility Match</span>
+                                    <span style={{ fontWeight: 800, color: 'var(--accent)' }}>{assistantResult.primary_recommendation.score}%</span>
+                                  </div>
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.02)', paddingBottom: '0.3rem' }}>
+                                    <span style={{ color: 'var(--text-dim)' }}>Best Listening Window</span>
+                                    <span style={{ fontWeight: 700 }}>{assistantResult.primary_recommendation.best_time}</span>
+                                  </div>
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.02)', paddingBottom: '0.3rem' }}>
+                                    <span style={{ color: 'var(--text-dim)' }}>Suggested Duration</span>
+                                    <span style={{ fontWeight: 700 }}>{assistantResult.primary_recommendation.duration}</span>
+                                  </div>
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', borderBottom: '1px solid rgba(255,255,255,0.02)', paddingBottom: '0.3rem' }}>
+                                    <span style={{ color: 'var(--text-dim)' }}>Suggested Mood</span>
+                                    <span style={{ fontWeight: 700, color: 'var(--primary)' }}>{assistantResult.primary_recommendation.mood}</span>
+                                  </div>
+                                  
+                                  {assistantResult.primary_recommendation.characteristics && (
+                                    <div style={{ marginTop: '0.5rem', textAlign: 'left' }}>
+                                      <span style={{ color: 'var(--text-dim)', display: 'block', marginBottom: '0.4rem', fontSize: '0.75rem', fontWeight: 600 }}>SUGGESTED CHARACTERISTICS</span>
+                                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
+                                        {assistantResult.primary_recommendation.characteristics.map((c, i) => (
+                                          <span key={i} style={{ background: 'rgba(255, 255, 255, 0.04)', padding: '0.3rem 0.7rem', borderRadius: '6px', fontSize: '0.75rem', border: '1px solid rgba(255,255,255,0.06)' }}>
+                                            {c}
+                                          </span>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Alternatives */}
+                            {assistantResult.alternatives && assistantResult.alternatives.length > 0 && (
+                              <div style={{ marginBottom: '2rem' }}>
+                                <span className="label" style={{ display: 'block', marginBottom: '0.75rem', color: 'var(--accent)', fontWeight: 700, fontSize: '0.75rem', letterSpacing: '0.1em', textTransform: 'uppercase', textAlign: 'left' }}>Alternative Recommendations</span>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+                                  {assistantResult.alternatives.map((alt, idx) => (
+                                    <div key={idx} style={{ 
+                                      display: 'flex', 
+                                      justifyContent: 'space-between', 
+                                      alignItems: 'center',
+                                      background: 'rgba(255, 255, 255, 0.02)', 
+                                      padding: '0.75rem 1rem', 
+                                      borderRadius: '12px', 
+                                      fontSize: '0.85rem', 
+                                      border: '1px solid rgba(255, 255, 255, 0.05)' 
+                                    }}>
+                                      <span style={{ fontWeight: 700, color: 'var(--text-main)' }}>{alt.activity}</span>
+                                      <span style={{ color: 'var(--primary)', fontWeight: 800 }}>{alt.score}%</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Session Plan */}
+                            {assistantResult.session_plan && assistantResult.session_plan.length > 0 && (
+                              <div style={{ marginBottom: '1.5rem' }}>
+                                <span className="label" style={{ display: 'block', marginBottom: '0.75rem', color: 'var(--accent)', fontWeight: 700, fontSize: '0.75rem', letterSpacing: '0.1em', textTransform: 'uppercase', textAlign: 'left' }}>Session Plan</span>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+                                  {assistantResult.session_plan.map((r, i) => (
+                                    <div key={i} style={{ 
+                                      display: 'flex', 
+                                      alignItems: 'center', 
+                                      gap: '1rem', 
+                                      background: 'rgba(255, 255, 255, 0.02)', 
+                                      padding: '0.75rem 1rem', 
+                                      borderRadius: '12px', 
+                                      border: '1px solid rgba(255, 255, 255, 0.04)',
+                                      textAlign: 'left'
+                                    }}>
+                                      <div style={{ 
+                                        background: 'linear-gradient(135deg, var(--primary) 0%, #d4af37 100%)', 
+                                        color: 'black', 
+                                        borderRadius: '50%', 
+                                        width: '26px', 
+                                        height: '26px', 
+                                        display: 'flex', 
+                                        alignItems: 'center', 
+                                        justifyContent: 'center', 
+                                        fontSize: '0.75rem', 
+                                        fontWeight: 800,
+                                        flexShrink: 0
+                                      }}>
+                                        {i + 1}
+                                      </div>
+                                      <span style={{ fontSize: '0.85rem', color: 'var(--text-main)', fontWeight: 600 }}>{r}</span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Right column: scores & explanation */}
+                          <div className="explanation-panel">
+                            {/* Compatibility grid */}
+                            {assistantResult.recommendation_scores && (
+                              <div style={{ marginBottom: '2rem' }}>
+                                <span className="label" style={{ display: 'block', marginBottom: '0.75rem', color: 'var(--accent)', fontWeight: 700, fontSize: '0.75rem', letterSpacing: '0.1em', textTransform: 'uppercase', textAlign: 'left' }}>Recommendation Compatibility Matrix</span>
+                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '0.5rem' }}>
+                                  {Object.entries(assistantResult.recommendation_scores)
+                                    .sort((a, b) => b[1] - a[1])
+                                    .map(([activity, score]) => (
+                                      <div key={activity} style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem', background: 'rgba(255, 255, 255, 0.02)', padding: '0.6rem 0.8rem', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.04)', textAlign: 'left' }}>
+                                        <span style={{ fontWeight: 600, color: 'var(--text-dim)', fontSize: '0.75rem', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>{activity}</span>
+                                        <span style={{ color: 'var(--primary)', fontWeight: 800, fontSize: '0.95rem' }}>{score}%</span>
+                                      </div>
+                                    ))}
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Why this recommendation */}
+                            <span className="label" style={{ display: 'block', marginBottom: '0.75rem', color: 'var(--accent)', fontWeight: 700, fontSize: '0.75rem', letterSpacing: '0.1em', textTransform: 'uppercase', textAlign: 'left' }}>Why this recommendation?</span>
+                            <div style={{ 
+                              background: 'rgba(0, 0, 0, 0.15)', 
+                              padding: '1.5rem', 
+                              borderRadius: '20px', 
+                              border: '1px solid rgba(255, 255, 255, 0.05)',
+                              boxShadow: '0 4px 20px rgba(0,0,0,0.1)'
+                            }}>
+                              <ul style={{ margin: 0, paddingLeft: '1.25rem', fontSize: '0.85rem', color: 'var(--text-main)', lineHeight: '1.6', textAlign: 'left' }}>
+                                {assistantResult.explanation.map((point, i) => (
+                                  <li key={i} style={{ marginBottom: '0.6rem' }}>{point}</li>
+                                ))}
+                              </ul>
+                            </div>
+                          </div>
+
+                        </div>
+                      </motion.div>
+                    )}
                   </div>
                 )}
-              </div>
-            )}
 
-            <AnimatePresence>
-              {files && files.length > 0 && (
-                <motion.div 
-                  className="analyzer-view"
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  exit={{ opacity: 0, height: 0 }}
-                >
-                  <div className="file-info">
-                    <Music size={18} />
-                    <span>{files.length} file(s) selected</span>
-                    <button className="reset-btn" onClick={() => { setFiles([]); setResult(null); setBulkResults(null); }}>Reset</button>
+                {activeModal === 'upload' && (
+                  <div>
+                    <h3 style={{ color: 'var(--accent)', fontSize: '1.25rem', fontWeight: 850, marginBottom: '1.5rem', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <Music size={18} style={{ color: 'var(--primary)' }} /> Upload File
+                    </h3>
+                    
+                    <div 
+                      className="upload-zone"
+                      onDragOver={(e) => e.preventDefault()}
+                      onDrop={(e) => {
+                        e.preventDefault();
+                        setFiles(Array.from(e.dataTransfer.files));
+                      }}
+                      onClick={() => document.getElementById('fileInput').click()}
+                      style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        border: '2px dashed rgba(245, 158, 11, 0.25)',
+                        borderRadius: '16px',
+                        padding: '2.5rem',
+                        cursor: 'pointer',
+                        background: 'rgba(255, 255, 255, 0.01)',
+                        transition: 'all 0.3s ease',
+                        minHeight: '200px'
+                      }}
+                    >
+                      <div className="upload-icon" style={{ marginBottom: '1rem', color: 'var(--primary)' }}>
+                        <Music size={48} strokeWidth={1.5} />
+                      </div>
+                      <h4 className="upload-title" style={{ fontSize: '1.1rem', fontWeight: 700, margin: '0 0 0.5rem 0', color: 'var(--accent)' }}>Drop your audio here</h4>
+                      <p className="upload-subtitle" style={{ fontSize: '0.85rem', color: 'var(--text-dim)', margin: 0 }}>WAV, MP3, or FLAC (Max 20MB)</p>
+                      <input 
+                        id="fileInput"
+                        type="file" 
+                        style={{ display: 'none' }} 
+                        onChange={(e) => setFiles(Array.from(e.target.files))}
+                        multiple
+                      />
+                    </div>
+
+                    <AnimatePresence>
+                      {files && files.length > 0 && files[0]?.name !== 'live_recording.wav' && (
+                        <motion.div 
+                          className="analyzer-view"
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: 'auto' }}
+                          exit={{ opacity: 0, height: 0 }}
+                          style={{ marginTop: '1.5rem' }}
+                        >
+                          <div className="file-info" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255, 255, 255, 0.03)', padding: '0.75rem 1rem', borderRadius: '12px', marginBottom: '1rem', border: '1px solid rgba(255, 255, 255, 0.05)', fontSize: '0.9rem' }}>
+                            <span style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--accent)', fontWeight: 600 }}>
+                              <Music size={16} /> {files.length} file(s) selected
+                            </span>
+                            <button className="reset-btn" onClick={() => { setFiles([]); setResult(null); setBulkResults(null); }} style={{ background: 'none', border: 'none', color: '#ff4d4d', cursor: 'pointer', fontWeight: 700 }}>Reset</button>
+                          </div>
+
+                          {files.length === 1 && <div className="waveform-box" ref={waveformRef} style={{ marginBottom: '1rem', background: 'rgba(0,0,0,0.2)', padding: '0.5rem', borderRadius: '12px' }}></div>}
+
+                          <div className="action-row" style={{ display: 'flex', gap: '0.5rem' }}>
+                            {files.length === 1 && (
+                              <button className="play-btn" onClick={() => { wavesurfer.current.playPause(); setPlaying(!playing); }} style={{ width: '48px', height: '48px', borderRadius: '12px', display: 'flex', alignItems: 'center', justify: 'center', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border)', color: 'var(--accent)', cursor: 'pointer' }}>
+                                {playing ? <Pause size={20} /> : <Play size={20} />}
+                              </button>
+                            )}
+                            <button className="analyze-btn" onClick={handleUpload} disabled={loading} style={{ flex: 1, background: 'linear-gradient(135deg, var(--primary) 0%, #d4af37 100%)', color: 'black', border: 'none', borderRadius: '12px', fontWeight: 800, cursor: 'pointer', height: '48px' }}>
+                              {loading ? 'Processing Neural Queue...' : `Analyze ${files.length} Input(s)`}
+                            </button>
+                          </div>
+                          {error && <div className="error-box" style={{ color: '#ff4d4d', marginTop: '1rem', fontSize: '0.85rem', textAlign: 'left' }}>{error}</div>}
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   </div>
+                )}
 
-                  {files.length === 1 && <div className="waveform-box" ref={waveformRef}></div>}
-
-                  <div className="action-row">
-                    {files.length === 1 && (
-                      <button className="play-btn" onClick={() => { wavesurfer.current.playPause(); setPlaying(!playing); }}>
-                        {playing ? <Pause size={24} /> : <Play size={24} />}
+                {activeModal === 'record' && (
+                  <div>
+                    <h3 style={{ color: 'var(--accent)', fontSize: '1.25rem', fontWeight: 850, marginBottom: '1.5rem', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <Mic size={18} style={{ color: 'var(--primary)' }} /> Record Live
+                    </h3>
+                    
+                    <div style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      border: '1px solid rgba(255, 255, 255, 0.05)',
+                      borderRadius: '16px',
+                      padding: '2rem',
+                      background: 'rgba(0, 0, 0, 0.15)',
+                      minHeight: '200px'
+                    }}>
+                      <div className="record-timer" style={{ fontSize: '2.5rem', fontWeight: 900, color: 'var(--accent)', marginBottom: '1rem' }}>
+                        {Math.floor(recordTime / 60)}:{(recordTime % 60).toString().padStart(2, '0')}
+                      </div>
+                      <button 
+                        className={`mic-btn ${isRecording ? 'recording' : ''}`}
+                        onClick={isRecording ? stopRecording : startRecording}
+                        style={{
+                          width: '80px',
+                          height: '80px',
+                          borderRadius: '50%',
+                          background: isRecording ? '#ef4444' : 'rgba(245, 158, 11, 0.1)',
+                          border: isRecording ? 'none' : '2px dashed var(--primary)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          cursor: 'pointer',
+                          color: isRecording ? 'white' : 'var(--primary)',
+                          transition: 'all 0.3s ease',
+                          boxShadow: isRecording ? '0 0 25px rgba(239, 68, 68, 0.4)' : 'none',
+                          marginBottom: '0.75rem'
+                        }}
+                      >
+                        <Mic size={32} />
                       </button>
-                    )}
-                    <button className="analyze-btn" onClick={handleUpload} disabled={loading}>
-                      {loading ? 'Processing Neural Queue...' : `Analyze ${files.length} Input(s)`}
-                    </button>
-                  </div>
-                  {error && <div className="error-box">{error}</div>}
-                </motion.div>
-              )}
-            </AnimatePresence>
+                      <p className="upload-subtitle" style={{ fontSize: '0.9rem', color: 'var(--text-dim)', margin: 0 }}>
+                        {isRecording ? "Recording Swaras..." : "Click mic to start session"}
+                      </p>
+                    </div>
 
-            <div className="system-info-box" style={{ marginTop: '3.5rem', borderTop: '1px solid var(--border)', paddingTop: '2.5rem' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '3rem' }}>
-                <div style={{ textAlign: 'left' }}>
-                  <h3 style={{ color: 'var(--primary)', fontSize: '1rem', marginBottom: '0.8rem', display: 'flex', alignItems: 'center', gap: '10px', letterSpacing: '1px' }}>
-                    <Zap size={16} /> NEURAL-SYMBOLIC ENGINE
-                  </h3>
-                  <p style={{ fontSize: '0.8rem', color: 'var(--text-dim)', lineHeight: '1.6' }}>
-                    Raga Vision combines deep learning with traditional musicological rules to identify the <b>Temporal Cycle (Prahara)</b> of Indian Classical Music. Our system analyzes microtonal variations and swara distributions to determine the correct time of day for any performance.
-                  </p>
-                </div>
-                <div style={{ textAlign: 'left' }}>
-                  <h3 style={{ color: 'var(--primary)', fontSize: '1rem', marginBottom: '0.8rem', display: 'flex', alignItems: 'center', gap: '10px', letterSpacing: '1px' }}>
-                    <Heart size={16} /> THERAPEUTIC INSIGHTS
-                  </h3>
-                  <p style={{ fontSize: '0.8rem', color: 'var(--text-dim)', lineHeight: '1.6' }}>
-                    Beyond simple classification, the system maps the acoustic energy of the music to therapeutic wellness profiles. Receive detailed AI-driven narratives on the emotional landscape and cognitive impact of the analyzed raga.
-                  </p>
-                </div>
-              </div>
-            </div>
-          </motion.div>
-        )}
+                    <AnimatePresence>
+                      {files && files.length > 0 && files[0]?.name === 'live_recording.wav' && (
+                        <motion.div 
+                          className="analyzer-view"
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: 'auto' }}
+                          exit={{ opacity: 0, height: 0 }}
+                          style={{ marginTop: '1.5rem' }}
+                        >
+                          <div className="file-info" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(255, 255, 255, 0.03)', padding: '0.75rem 1rem', borderRadius: '12px', marginBottom: '1rem', border: '1px solid rgba(255, 255, 255, 0.05)', fontSize: '0.9rem' }}>
+                            <span style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--accent)', fontWeight: 600 }}>
+                              <History size={16} /> Live Recording Ready
+                            </span>
+                            <button className="reset-btn" onClick={() => { setFiles([]); setResult(null); setBulkResults(null); }} style={{ background: 'none', border: 'none', color: '#ff4d4d', cursor: 'pointer', fontWeight: 700 }}>Reset</button>
+                          </div>
+
+                          <div className="action-row">
+                            <button className="analyze-btn" onClick={handleUpload} disabled={loading} style={{ width: '100%', background: 'linear-gradient(135deg, var(--primary) 0%, #d4af37 100%)', color: 'black', border: 'none', borderRadius: '12px', fontWeight: 800, cursor: 'pointer', height: '48px' }}>
+                              {loading ? 'Processing Neural Queue...' : 'Analyze Recording'}
+                            </button>
+                          </div>
+                          {error && <div className="error-box" style={{ color: '#ff4d4d', marginTop: '1rem', fontSize: '0.85rem', textAlign: 'left' }}>{error}</div>}
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                )}
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         <AnimatePresence>
           {result && (
@@ -1272,47 +1885,47 @@ const App = () => {
 
                       {/* Music Wellness Profile */}
                       <div style={{ marginBottom: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                        <span className="label" style={{ display: 'block', fontSize: '1rem' }}>🎵 Music Wellness Profile</span>
+                        <span className="label" style={{ display: 'block', fontSize: '1.05rem', color: 'var(--accent)', fontWeight: 800 }}>🎵 Music Wellness Profile</span>
                         <div className="therapy-scores-row" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.5rem', marginBottom: '1.5rem' }}>
                           <div className="score-block">
-                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.3rem', fontWeight: 800, color: 'var(--accent)' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.3rem', fontWeight: 800, color: 'var(--text-main)', fontSize: '0.95rem' }}>
                               <span>Calmness</span>
-                              <span>{result.therapy.wellness_profile?.calmness ?? result.therapy.therapy_scores?.calm_score ?? 5}/10</span>
+                              <span style={{ color: 'var(--primary)' }}>{result.therapy.wellness_profile?.calmness ?? result.therapy.therapy_scores?.calm_score ?? 5}/10</span>
                             </div>
                             <div className="progress-bg"><div className="progress-fill calm" style={{ width: `${(result.therapy.wellness_profile?.calmness ?? result.therapy.therapy_scores?.calm_score ?? 5) * 10}%` }}></div></div>
                           </div>
                           <div className="score-block">
-                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.3rem', fontWeight: 800, color: 'var(--accent)' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.3rem', fontWeight: 800, color: 'var(--text-main)', fontSize: '0.95rem' }}>
                               <span>Energy</span>
-                              <span>{result.therapy.wellness_profile?.energy ?? result.therapy.therapy_scores?.energy_score ?? 5}/10</span>
+                              <span style={{ color: 'var(--primary)' }}>{result.therapy.wellness_profile?.energy ?? result.therapy.therapy_scores?.energy_score ?? 5}/10</span>
                             </div>
                             <div className="progress-bg"><div className="progress-fill energy" style={{ width: `${(result.therapy.wellness_profile?.energy ?? result.therapy.therapy_scores?.energy_score ?? 5) * 10}%` }}></div></div>
                           </div>
                           <div className="score-block">
-                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.3rem', fontWeight: 800, color: 'var(--accent)' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.3rem', fontWeight: 800, color: 'var(--text-main)', fontSize: '0.95rem' }}>
                               <span>Focus</span>
-                              <span>{result.therapy.wellness_profile?.focus ?? result.therapy.therapy_scores?.focus_score ?? 5}/10</span>
+                              <span style={{ color: 'var(--primary)' }}>{result.therapy.wellness_profile?.focus ?? result.therapy.therapy_scores?.focus_score ?? 5}/10</span>
                             </div>
                             <div className="progress-bg"><div className="progress-fill focus" style={{ width: `${(result.therapy.wellness_profile?.focus ?? result.therapy.therapy_scores?.focus_score ?? 5) * 10}%` }}></div></div>
                           </div>
                           <div className="score-block">
-                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.3rem', fontWeight: 800, color: 'var(--accent)' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.3rem', fontWeight: 800, color: 'var(--text-main)', fontSize: '0.95rem' }}>
                               <span>Brightness</span>
-                              <span>{result.therapy.wellness_profile?.brightness ?? 5}/10</span>
+                              <span style={{ color: 'var(--primary)' }}>{result.therapy.wellness_profile?.brightness ?? 5}/10</span>
                             </div>
                             <div className="progress-bg"><div className="progress-fill uplifting" style={{ width: `${(result.therapy.wellness_profile?.brightness ?? 5) * 10}%`, background: '#fbc02d' }}></div></div>
                           </div>
                           <div className="score-block">
-                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.3rem', fontWeight: 800, color: 'var(--accent)' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.3rem', fontWeight: 800, color: 'var(--text-main)', fontSize: '0.95rem' }}>
                               <span>Stability</span>
-                              <span>{result.therapy.wellness_profile?.stability ?? 5}/10</span>
+                              <span style={{ color: 'var(--primary)' }}>{result.therapy.wellness_profile?.stability ?? 5}/10</span>
                             </div>
                             <div className="progress-bg"><div className="progress-fill relaxing" style={{ width: `${(result.therapy.wellness_profile?.stability ?? 5) * 10}%`, background: '#2e7d32' }}></div></div>
                           </div>
                           <div className="score-block">
-                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.3rem', fontWeight: 800, color: 'var(--accent)' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.3rem', fontWeight: 800, color: 'var(--text-main)', fontSize: '0.95rem' }}>
                               <span>Complexity</span>
-                              <span>{result.therapy.wellness_profile?.complexity ?? 5}/10</span>
+                              <span style={{ color: 'var(--primary)' }}>{result.therapy.wellness_profile?.complexity ?? 5}/10</span>
                             </div>
                             <div className="progress-bg"><div className="progress-fill focus" style={{ width: `${(result.therapy.wellness_profile?.complexity ?? 5) * 10}%`, background: '#8e24aa' }}></div></div>
                           </div>
@@ -1322,8 +1935,8 @@ const App = () => {
                       {/* Temporal Suitability */}
                       {result.therapy.temporal_suitability && (
                         <div className="temporal-suitability-panel" style={{ marginBottom: '2rem' }}>
-                          <span className="label" style={{ display: 'block', marginBottom: '0.75rem' }}>⏰ TEMPORAL SUITABILITY</span>
-                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))', gap: '1rem', background: 'rgba(255,255,255,0.4)', padding: '1rem', borderRadius: '15px', border: '1px solid var(--border)' }}>
+                          <span className="label" style={{ display: 'block', marginBottom: '0.75rem', fontSize: '1.05rem', color: 'var(--accent)', fontWeight: 800 }}>⏰ TEMPORAL SUITABILITY</span>
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))', gap: '1rem', background: 'rgba(0, 0, 0, 0.2)', padding: '1rem', borderRadius: '15px', border: '1px solid var(--border)' }}>
                             {Object.entries(result.therapy.temporal_suitability).map(([timeOfDay, pct]) => {
                               const TEMPORAL_NAMES = {
                                 early_morning: "Early Morning",
@@ -1335,10 +1948,10 @@ const App = () => {
                               };
                               return (
                                 <div key={timeOfDay} style={{ textAlign: 'center' }}>
-                                  <div style={{ fontSize: '0.7rem', color: 'var(--text-dim)', fontWeight: 700 }}>
+                                  <div style={{ fontSize: '0.85rem', color: 'var(--text-main)', fontWeight: 700 }}>
                                     {TEMPORAL_NAMES[timeOfDay] || timeOfDay.replace('_', ' ')}
                                   </div>
-                                  <div style={{ fontSize: '1.1rem', fontWeight: 900, color: 'var(--primary)', margin: '0.2rem 0' }}>
+                                  <div style={{ fontSize: '1.25rem', fontWeight: 900, color: 'var(--primary)', margin: '0.2rem 0' }}>
                                     {pct}%
                                   </div>
                                   <div className="progress-bg" style={{ height: '4px', margin: '0 auto', width: '80%' }}>
@@ -1354,23 +1967,23 @@ const App = () => {
                       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '2rem' }}>
                         <div className="recommendation-panel">
                           <div style={{ marginBottom: '1.5rem' }}>
-                            <span className="label" style={{ display: 'block', marginBottom: '0.5rem' }}>Primary Recommendation</span>
-                            <div style={{ background: 'white', padding: '1.25rem', borderRadius: '15px', border: '1px solid var(--border)' }}>
-                              <div style={{ fontSize: '1.25rem', fontWeight: 900, color: 'var(--primary)', marginBottom: '0.5rem' }}>
+                            <span className="label" style={{ display: 'block', marginBottom: '0.5rem', fontSize: '1.05rem', color: 'var(--accent)', fontWeight: 800 }}>Primary Recommendation</span>
+                            <div style={{ background: 'rgba(0, 0, 0, 0.2)', padding: '1.25rem', borderRadius: '15px', border: '1px solid var(--border)' }}>
+                              <div style={{ fontSize: '1.3rem', fontWeight: 900, color: 'var(--primary)', marginBottom: '0.5rem' }}>
                                 {result.therapy.primary_recommendation?.activity ?? result.therapy.recommendation?.primary}
                               </div>
-                              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', fontSize: '0.85rem', color: 'var(--text-main)', marginTop: '0.5rem', borderTop: '1px solid var(--border)', paddingTop: '0.5rem' }}>
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', fontSize: '0.95rem', color: 'var(--text-main)', marginTop: '0.5rem', borderTop: '1px solid var(--border)', paddingTop: '0.5rem' }}>
                                 {result.therapy.primary_recommendation?.score !== undefined && (
-                                  <div><strong>Compatibility:</strong> {result.therapy.primary_recommendation.score}%</div>
+                                  <div><span style={{ color: 'var(--text-dim)', fontWeight: 600 }}>Compatibility:</span> <strong style={{ color: 'var(--primary)' }}>{result.therapy.primary_recommendation.score}%</strong></div>
                                 )}
                                 {result.therapy.primary_recommendation?.best_time && (
-                                  <div><strong>Best Time:</strong> {result.therapy.primary_recommendation.best_time}</div>
+                                  <div><span style={{ color: 'var(--text-dim)', fontWeight: 600 }}>Best Time:</span> <strong style={{ color: 'var(--text-main)' }}>{result.therapy.primary_recommendation.best_time}</strong></div>
                                 )}
                                 {result.therapy.primary_recommendation?.suggested_duration && (
-                                  <div><strong>Suggested Duration:</strong> {result.therapy.primary_recommendation.suggested_duration}</div>
+                                  <div><span style={{ color: 'var(--text-dim)', fontWeight: 600 }}>Suggested Duration:</span> <strong style={{ color: 'var(--text-main)' }}>{result.therapy.primary_recommendation.suggested_duration}</strong></div>
                                 )}
                                 {result.therapy.primary_recommendation?.intensity && (
-                                  <div><strong>Intensity:</strong> {result.therapy.primary_recommendation.intensity}</div>
+                                  <div><span style={{ color: 'var(--text-dim)', fontWeight: 600 }}>Intensity:</span> <strong style={{ color: 'var(--text-main)' }}>{result.therapy.primary_recommendation.intensity}</strong></div>
                                 )}
                               </div>
                             </div>
@@ -1379,10 +1992,10 @@ const App = () => {
                           {/* Alternatives */}
                           {result.therapy.alternatives && result.therapy.alternatives.length > 0 && (
                             <div style={{ marginBottom: '1.5rem' }}>
-                              <span className="label" style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.9rem' }}>ALTERNATIVE RECOMMENDATIONS</span>
+                              <span className="label" style={{ display: 'block', marginBottom: '0.5rem', fontSize: '1.05rem', color: 'var(--accent)', fontWeight: 800 }}>ALTERNATIVE RECOMMENDATIONS</span>
                               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                                 {result.therapy.alternatives.map((alt, idx) => (
-                                  <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', background: 'rgba(255, 255, 255, 0.4)', padding: '0.6rem 0.8rem', borderRadius: '10px', fontSize: '0.85rem', border: '1px solid var(--border)' }}>
+                                  <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', background: 'rgba(0, 0, 0, 0.15)', padding: '0.6rem 0.8rem', borderRadius: '10px', fontSize: '0.95rem', border: '1px solid var(--border)' }}>
                                     <span style={{ fontWeight: 700, color: 'var(--text-main)' }}>{alt.activity}</span>
                                     <span style={{ color: 'var(--primary)', fontWeight: 800 }}>{alt.score}%</span>
                                   </div>
@@ -1394,7 +2007,7 @@ const App = () => {
                           {/* Session Plan */}
                           {result.therapy.session_plan && result.therapy.session_plan.length > 0 && (
                             <div className="session-planner" style={{ marginBottom: '1.5rem' }}>
-                              <span className="label" style={{ display: 'block', marginBottom: '0.5rem' }}>SESSION PLAN</span>
+                              <span className="label" style={{ display: 'block', marginBottom: '0.5rem', fontSize: '1.05rem', color: 'var(--accent)', fontWeight: 800 }}>SESSION PLAN</span>
                               <div className="timeline">
                                 {result.therapy.session_plan.map((r, i) => (
                                   <div key={i} className="timeline-item">
@@ -1409,13 +2022,13 @@ const App = () => {
                           {/* Recommendation Compatibility Scores */}
                           {result.therapy.recommendation_scores && (
                             <div style={{ marginBottom: '1.5rem' }}>
-                              <span className="label" style={{ display: 'block', marginBottom: '0.5rem' }}>RECOMMENDATION COMPATIBILITY</span>
+                              <span className="label" style={{ display: 'block', marginBottom: '0.5rem', fontSize: '1.05rem', color: 'var(--accent)', fontWeight: 800 }}>RECOMMENDATION COMPATIBILITY</span>
                               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.5rem' }}>
                                 {Object.entries(result.therapy.recommendation_scores)
                                   .sort((a, b) => b[1] - a[1])
                                   .map(([activity, score]) => (
-                                    <div key={activity} style={{ display: 'flex', justifyContent: 'space-between', background: 'rgba(255, 255, 255, 0.3)', padding: '0.5rem 0.75rem', borderRadius: '8px', fontSize: '0.8rem', border: '1px solid var(--border)' }}>
-                                      <span style={{ fontWeight: 600, color: 'var(--text-main)', fontSize: '0.75rem' }}>{activity}</span>
+                                    <div key={activity} style={{ display: 'flex', justifyContent: 'space-between', background: 'rgba(0, 0, 0, 0.15)', padding: '0.5rem 0.75rem', borderRadius: '8px', fontSize: '0.9rem', border: '1px solid var(--border)' }}>
+                                      <span style={{ fontWeight: 600, color: 'var(--text-main)', fontSize: '0.85rem' }}>{activity}</span>
                                       <span style={{ color: 'var(--primary)', fontWeight: 800 }}>{score}%</span>
                                     </div>
                                   ))}
@@ -1425,9 +2038,9 @@ const App = () => {
                         </div>
 
                         <div className="explanation-panel">
-                          <span className="label" style={{ display: 'block', marginBottom: '0.5rem' }}>Why this recommendation?</span>
-                          <div style={{ background: 'rgba(255,255,255,0.5)', padding: '1.25rem', borderRadius: '15px', border: '1px solid var(--border)' }}>
-                            <ul style={{ margin: 0, paddingLeft: '1.25rem', fontSize: '0.9rem', color: 'var(--text-main)', lineHeight: '1.5' }}>
+                          <span className="label" style={{ display: 'block', marginBottom: '0.5rem', fontSize: '1.05rem', color: 'var(--accent)', fontWeight: 800 }}>Why this recommendation?</span>
+                          <div style={{ background: 'rgba(0, 0, 0, 0.15)', padding: '1.25rem', borderRadius: '15px', border: '1px solid var(--border)' }}>
+                            <ul style={{ margin: 0, paddingLeft: '1.25rem', fontSize: '0.98rem', color: 'var(--text-main)', lineHeight: '1.6' }}>
                               {result.therapy.explanation.map((point, i) => (
                                 <li key={i} style={{ marginBottom: '0.5rem' }}>{point}</li>
                               ))}
@@ -1596,6 +2209,40 @@ const App = () => {
                     >
                       {processingStatus[result?.filename] === 'indexing' ? <Sparkles className="animate-spin" size={16} /> : processingStatus[result?.filename] === 'indexed' ? <Bot size={16} /> : <Database size={16} />}
                       {processingStatus[result?.filename] === 'indexing' ? `Embedding Chunks... ${Math.min(indexingProgress[result?.filename] || 0, 99)}%` : processingStatus[result?.filename] === 'indexed' ? 'Open Raga Chatbot' : 'Process for RAG Chat'}
+                    </button>
+                    <button
+                      onClick={() => {
+                        const isRecord = result?.filename === 'live_recording.wav';
+                        setFiles([]);
+                        setResult(null);
+                        setBulkResults(null);
+                        setActiveModal(isRecord ? 'record' : 'upload');
+                      }}
+                      style={{
+                        padding: '0.6rem 1.2rem',
+                        background: 'linear-gradient(135deg, var(--primary) 0%, #d4af37 100%)',
+                        color: '#0f1115',
+                        border: 'none',
+                        borderRadius: '10px',
+                        fontWeight: '800',
+                        fontSize: '0.85rem',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem',
+                        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                        boxShadow: '0 4px 12px rgba(176, 141, 72, 0.2)'
+                      }}
+                    >
+                      {result?.filename === 'live_recording.wav' ? (
+                        <>
+                          <Mic size={16} /> Record Another Session
+                        </>
+                      ) : (
+                        <>
+                          <Music size={16} /> Upload Another File
+                        </>
+                      )}
                     </button>
                   </div>
                 </div>
@@ -1766,6 +2413,12 @@ const App = () => {
               openChat={(item) => {
                 setActiveChatResult(item);
                 setChatOpen(true);
+              }}
+              onReset={() => {
+                setFiles([]);
+                setResult(null);
+                setBulkResults(null);
+                setActiveModal('upload');
               }}
             />
           )}

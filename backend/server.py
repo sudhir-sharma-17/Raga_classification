@@ -370,6 +370,300 @@ def classify_audio(file: UploadFile = File(...), lang: str = "en", intent: Optio
             os.remove(temp_path)
 
 
+class RecommendRequest(BaseModel):
+    intent: Optional[str] = None
+    query: Optional[str] = None
+
+
+@app.post("/recommend")
+def recommend_music(req: RecommendRequest):
+    from backend.raga_db import RAGA_DB_V3
+    from backend.therapy_engine import RAGA_THERAPY_DB
+    import random
+    
+    intent = req.intent or ""
+    query = req.query or ""
+    
+    # 1. Preset profiles mapping
+    PROFILES = {
+        "relax": {
+            "primary": "Relaxation & Stress Relief",
+            "secondary": "Evening Listening",
+            "mood": "Calm & Grounding",
+            "characteristics": ["Stable tonic alignment", "Low-to-moderate energy", "Soothing transitions"],
+            "duration": "30–40 minutes",
+            "time_slot": "Evening",
+            "rasas": ["shanta", "karuna", "shringar"]
+        },
+        "meditate": {
+            "primary": "Meditation / Stress Reduction",
+            "secondary": "Morning Listening",
+            "mood": "Calm & Meditative",
+            "characteristics": ["Stable pitch structure", "Low energy", "Meditative melody"],
+            "duration": "20–30 minutes",
+            "time_slot": "Morning",
+            "rasas": ["shanta", "bhakti", "karuna"]
+        },
+        "study": {
+            "primary": "Cognitive Focus & Study",
+            "secondary": "Afternoon Listening",
+            "mood": "Alert yet Relaxed",
+            "characteristics": ["Moderate tempo", "Moderate melodic complexity", "Stable structure"],
+            "duration": "45–60 minutes",
+            "time_slot": "Afternoon",
+            "rasas": ["shanta", "bhakti", "shringar"]
+        },
+        "sleep": {
+            "primary": "Deep Sleep Preparation",
+            "secondary": "Night Listening",
+            "mood": "Soporific & Grounding",
+            "characteristics": ["Very slow tempo", "Low complexity", "High Sa stability", "Dark timbre"],
+            "duration": "20–30 minutes",
+            "time_slot": "Night",
+            "rasas": ["shanta", "gambhir", "sorrow"]
+        },
+        "focus": {
+            "primary": "Improve Focus",
+            "secondary": "Daytime Listening",
+            "mood": "Focused & Active",
+            "characteristics": ["Moderate tempo", "Structured note transitions", "Clear note centers"],
+            "duration": "30–45 minutes",
+            "time_slot": "Afternoon",
+            "rasas": ["shanta", "veera", "joy", "happiness"]
+        },
+        "morning": {
+            "primary": "Morning Listening",
+            "secondary": "Uplifting Melodies",
+            "mood": "Fresh & Uplifting",
+            "characteristics": ["Morning suitability", "Bright intervals", "Uplifting morning moods"],
+            "duration": "20–30 minutes",
+            "time_slot": "Morning",
+            "rasas": ["happiness", "joy", "veera", "shanta"]
+        },
+        "evening": {
+            "primary": "Evening Listening",
+            "secondary": "Soothing Melodies",
+            "mood": "Soothing & Peaceful",
+            "characteristics": ["Evening suitability", "Warm note structures", "Romance & peace"],
+            "duration": "30–45 minutes",
+            "time_slot": "Evening",
+            "rasas": ["shringar", "bhakti", "shanta"]
+        },
+        "explore": {
+            "primary": "Explore Classical Music",
+            "secondary": "Melodic Discovery",
+            "mood": "Curious & Engaging",
+            "characteristics": ["Rich note transitions", "Varying tempo", "Engaging melodic shape"],
+            "duration": "15–30 minutes",
+            "time_slot": "Midnight",
+            "rasas": ["joy", "romance", "courage", "separation"]
+        }
+    }
+    
+    # 2. Match intent profile
+    profile_key = intent.lower().replace("_", "").replace(" ", "")
+    # Default is explore
+    profile = PROFILES.get(profile_key) or PROFILES["explore"]
+    
+    primary_intent = profile["primary"]
+    secondary_context = profile["secondary"]
+    mood = profile["mood"]
+    characteristics = profile["characteristics"]
+    duration = profile["duration"]
+    time_slot = profile["time_slot"]
+    target_rasas = profile["rasas"]
+    
+    # 3. Custom Query Text Parsing overrides (if provided)
+    if query:
+        query_lower = query.lower()
+        if "morning" in query_lower or "dawn" in query_lower or "early" in query_lower:
+            time_slot = "Morning"
+            secondary_context = "Morning Listening"
+        elif "afternoon" in query_lower or "noon" in query_lower:
+            time_slot = "Afternoon"
+            secondary_context = "Afternoon Listening"
+        elif "evening" in query_lower or "sunset" in query_lower:
+            time_slot = "Evening"
+            secondary_context = "Evening Listening"
+        elif "night" in query_lower or "sleep" in query_lower or "bed" in query_lower or "dark" in query_lower:
+            time_slot = "Night"
+            secondary_context = "Night Listening"
+            
+        # Parse mood overrides
+        if any(w in query_lower for w in ["calm", "relax", "peace", "sooth", "ground"]):
+            primary_intent = "Relaxation & Stress Relief"
+            mood = "Calm & Grounding"
+            target_rasas = ["shanta", "karuna", "shringar"]
+        elif any(w in query_lower for w in ["meditate", "prayer", "devot", "chant"]):
+            primary_intent = "Meditation / Stress Reduction"
+            mood = "Calm & Meditative"
+            target_rasas = ["shanta", "bhakti", "karuna"]
+        elif any(w in query_lower for w in ["study", "focus", "work", "concentrat", "read"]):
+            primary_intent = "Cognitive Focus & Study"
+            mood = "Alert yet Relaxed"
+            target_rasas = ["shanta", "bhakti"]
+        elif any(w in query_lower for w in ["sleep", "insomnia", "rest"]):
+            primary_intent = "Deep Sleep Preparation"
+            mood = "Soporific & Grounding"
+            target_rasas = ["shanta", "gambhir", "sorrow"]
+        elif any(w in query_lower for w in ["energy", "uplift", "happy", "power", "work out", "excit"]):
+            primary_intent = "Mood Elevation & Vitality"
+            mood = "Fresh & Uplifting"
+            target_rasas = ["joy", "happiness", "veera"]
+            
+    # 4. Raga Scoring Engine
+    raga_scores = []
+    
+    # 4a. Setup Time Period mappings
+    RAGA_TIME_MAPPING = {
+        "dawn": ["morning", "dawn"],
+        "morning": ["morning", "dawn"],
+        "afternoon": ["afternoon"],
+        "evening": ["evening", "sunset"],
+        "sunset": ["evening", "sunset"],
+        "night": ["night", "midnight"],
+        "midnight": ["night", "midnight"],
+        "spring": ["morning", "afternoon", "evening", "night"],
+        "rainy season": ["afternoon", "evening", "night"]
+    }
+    
+    ADJACENT_TIMES = {
+        "morning": ["dawn", "afternoon", "midnight"],
+        "afternoon": ["morning", "evening"],
+        "evening": ["afternoon", "sunset", "night"],
+        "night": ["evening", "midnight"],
+        "midnight": ["night", "dawn", "morning"],
+        "dawn": ["midnight", "morning"],
+        "sunset": ["evening", "night"]
+    }
+
+    for raga_name, meta in RAGA_DB_V3.items():
+        # --- Time-of-Day Similarity S_time ---
+        raga_time = meta.get("time", "").lower()
+        target_time = time_slot.lower()
+        
+        # Mapped times for this raga
+        mapped_times = RAGA_TIME_MAPPING.get(raga_time, [raga_time])
+        
+        S_time = 0.0
+        if target_time in mapped_times:
+            S_time = 1.0
+        else:
+            # Check adjacent
+            is_adjacent = False
+            for mt in mapped_times:
+                if target_time in ADJACENT_TIMES.get(mt, []):
+                    is_adjacent = True
+                    break
+            if is_adjacent:
+                S_time = 0.5
+                
+        # --- Rasa/Mood Similarity S_mood ---
+        raga_rasa_lower = meta.get("rasa", "").lower()
+        rasa_matches = 0
+        for tr in target_rasas:
+            if tr in raga_rasa_lower:
+                rasa_matches += 1
+                
+        if target_rasas:
+            S_mood = rasa_matches / len(target_rasas)
+        else:
+            S_mood = 0.5
+            
+        # --- Melodic Complexity suitability S_melodic ---
+        notes = meta.get("notes", [])
+        num_notes = len(notes)
+        is_pentatonic = num_notes <= 5
+        is_heptatonic = num_notes >= 7
+        
+        if profile_key in ["relax", "meditate", "sleep"]:
+            if is_pentatonic:
+                S_melodic = 1.0
+            elif is_heptatonic:
+                S_melodic = 0.3
+            else:
+                S_melodic = 0.6
+        elif profile_key in ["study", "focus", "explore"]:
+            if is_heptatonic:
+                S_melodic = 1.0
+            elif is_pentatonic:
+                S_melodic = 0.3
+            else:
+                S_melodic = 0.6
+        else:
+            S_melodic = 0.8
+            
+        # --- Unified Weighted Score ---
+        w_time = 0.50
+        w_mood = 0.35
+        w_melodic = 0.15
+        
+        raw_match = (w_time * S_time) + (w_mood * S_mood) + (w_melodic * S_melodic)
+        score = int(45 + raw_match * 50)
+        
+        # Deterministic tie breaker based on string length & character sum
+        tie_breaker = (sum(ord(c) for c in raga_name) % 3) - 1  # -1, 0, or 1
+        score = min(max(score + tie_breaker, 40), 95)
+        
+        raga_scores.append((raga_name, score, meta))
+        
+    # Sort descending
+    raga_scores.sort(key=lambda x: x[1], reverse=True)
+    
+    # 5. Extract top recommendation
+    top_raga_name, top_score, top_meta = raga_scores[0]
+    
+    # Compile dynamic explanations
+    explanation = [
+        f"Your query indicates a listening preference matching a {mood.lower()} context.",
+        f"We suggest a classical raga of the {top_meta.get('time', 'day')} period, which aligns with traditional musicological Prahar time cycles.",
+        f"Raga {top_raga_name.replace('_', ' ')} emphasizes emotional characteristics of {top_meta.get('rasa', 'Universal Balance')}, supporting {primary_intent.lower()}.",
+        "This recommendation is wellness-oriented and is designed for general mood management."
+    ]
+    
+    # Find session plan template
+    clean_name = top_raga_name.replace("_", " ")
+    therapy_info = RAGA_THERAPY_DB.get(top_raga_name) or RAGA_THERAPY_DB.get(clean_name) or {}
+    session_plan = therapy_info.get("session_plan")
+    if not session_plan:
+        session_plan = [
+            f"{clean_name} (15m Alap for slow calming progression)",
+            f"{clean_name} Gat (30m structured rhythmic engagement)",
+            f"{clean_name} Recessional (15m meditative integration)"
+        ]
+        
+    # Alternatives
+    alternatives = [
+        {"activity": f"Raga {name.replace('_', ' ')}", "score": sc}
+        for name, sc, _ in raga_scores[1:4]
+    ]
+    
+    # Dynamic recommendation compatibility matrix
+    rec_scores = {
+        f"Raga {name.replace('_', ' ')}": sc
+        for name, sc, _ in raga_scores[:8]
+    }
+    
+    return {
+        "intent": {
+            "primary": primary_intent,
+            "secondary": secondary_context
+        },
+        "primary_recommendation": {
+            "category": f"{clean_name} ({top_meta.get('time', 'Varies')})",
+            "score": top_score,
+            "best_time": top_meta.get("optimal_time", "Varies"),
+            "duration": duration,
+            "mood": mood,
+            "characteristics": characteristics
+        },
+        "alternatives": alternatives,
+        "session_plan": session_plan,
+        "recommendation_scores": rec_scores,
+        "explanation": explanation
+    }
+
+
 if __name__ == "__main__":
     import uvicorn
     import sys

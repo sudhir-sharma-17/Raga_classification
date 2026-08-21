@@ -9,7 +9,13 @@ SWARA_NAMES = ["Sa", "re", "Re", "ga", "Ga", "Ma", "Ma'", "Pa", "dha", "Dha", "n
 def extract_swaras(f0, voiced, tonic_hz, sr=22050, hop_length=512):
     valid_f0 = f0[voiced & ~np.isnan(f0)]
     if len(valid_f0) == 0:
-        return {"detected": [], "unique": [], "most_frequent": ("None", 0)}
+        return {
+            "detected": [],
+            "unique": [],
+            "most_frequent": ("None", 0),
+            "distribution": {},
+            "sequence": []
+        }
     
     semitones = 12.0 * np.log2(valid_f0 / tonic_hz)
     pc = np.mod(np.round(semitones), 12.0).astype(int)
@@ -165,9 +171,15 @@ def get_note_transitions(f0, voiced, tonic_hz):
 
 def get_tempo(y, sr):
     tempo, _ = librosa.beat.beat_track(y=y, sr=sr)
-    if tempo.size == 0:
+    if isinstance(tempo, (int, float)):
+        return round(float(tempo))
+    if hasattr(tempo, "size") and tempo.size == 0:
         return 0
-    return round(float(np.atleast_1d(tempo)[0]))
+    try:
+        val = np.atleast_1d(tempo)[0]
+        return round(float(val))
+    except Exception:
+        return 0
 
 def get_structure(y, sr):
     dur = len(y) / sr

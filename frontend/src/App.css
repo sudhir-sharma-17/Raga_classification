@@ -8,6 +8,26 @@
   --border: rgba(255,255,255,0.08);
   --shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
   --font-main: 'Inter', system-ui, -apple-system, sans-serif;
+  --glass-bg: rgba(43, 45, 49, 0.6);
+  --chat-header-bg: rgba(43, 45, 49, 0.8);
+}
+
+/* Explicit Light Mode Override */
+:root.light {
+  --accent: #1e293b; /* Dark Slate for headers */
+  --bg-main: #f1f5f9; /* Slate-100 main background */
+  --bg-card: #ffffff; /* White card background */
+  --text-main: #334155; /* Slate-700 main body text */
+  --text-dim: #64748b; /* Slate-500 dimmed text */
+  --border: rgba(0, 0, 0, 0.08); /* Subtle black borders */
+  --shadow: 0 10px 30px rgba(0, 0, 0, 0.05); /* Soft shadow */
+  --glass-bg: rgba(255, 255, 255, 0.65); /* Light glass */
+  --chat-header-bg: rgba(255, 255, 255, 0.85); /* Light chat header */
+}
+
+/* Smooth transition when toggling modes */
+body, .card, .chat-sidebar, .lang-selector, button, select, input, textarea {
+  transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease, box-shadow 0.3s ease;
 }
 
 * {
@@ -71,7 +91,7 @@ header {
 
 .glass-card {
   backdrop-filter: blur(10px);
-  background: rgba(43, 45, 49, 0.6);
+  background: var(--glass-bg, rgba(43, 45, 49, 0.6));
 }
 
 .upload-zone {
@@ -921,16 +941,16 @@ header {
 
 .timeline-item .time {
   display: block;
-  font-size: 0.65rem;
-  color: var(--text-dim);
+  font-size: 0.85rem;
+  color: var(--text-main);
   font-weight: 800;
   text-transform: uppercase;
   margin-bottom: 0.25rem;
 }
 
 .timeline-item .raga {
-  font-weight: 800;
-  font-size: 0.9rem;
+  font-weight: 900;
+  font-size: 1.1rem;
   color: var(--primary);
 }
 
@@ -1128,7 +1148,7 @@ header {
 .chat-header {
   display: flex; align-items: center; justify-content: space-between;
   padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--border);
-  background: rgba(43,45,49,0.8); backdrop-filter: blur(10px);
+  background: var(--chat-header-bg, rgba(43,45,49,0.8)); backdrop-filter: blur(10px);
 }
 .chat-header-left { display: flex; align-items: center; gap: 0.75rem; }
 .chat-header h3 { margin: 0; font-size: 1.1rem; font-weight: 800; color: var(--accent); }
@@ -1246,4 +1266,127 @@ header {
 @media (max-width: 768px) {
   .chat-sidebar { width: 100vw; }
   .chat-toggle-btn { bottom: 1rem; right: 1rem; width: 50px; height: 50px; }
+}
+
+
+/* --- NEW: PRESET CHIP & RECOMMEND BUTTON HOVER EFFECTS --- */
+.preset-chip {
+  padding: 0.6rem 1.3rem;
+  font-size: 0.88rem;
+  border-radius: 20px;
+  text-transform: none;
+  letter-spacing: 0.02em;
+  font-weight: 600;
+  background: rgba(255, 255, 255, 0.02);
+  color: var(--text-main);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.preset-chip:hover {
+  transform: translateY(-2px);
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(245, 158, 11, 0.5);
+  color: #ffffff;
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.12);
+}
+
+:root.light .preset-chip:hover {
+  color: #000000;
+}
+
+.preset-chip.active {
+  background: var(--primary) !important;
+  color: black !important;
+  border-color: var(--primary) !important;
+  font-weight: 700;
+  box-shadow: 0 4px 15px rgba(245, 158, 11, 0.3) !important;
+}
+
+.preset-chip.active:hover {
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 0 6px 20px rgba(245, 158, 11, 0.4) !important;
+}
+
+.recommend-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  background: linear-gradient(135deg, var(--primary) 0%, #d4af37 100%);
+  color: black;
+  border: none;
+  padding: 0.8rem 2rem;
+  border-radius: 30px;
+  font-weight: 800;
+  font-size: 0.95rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  box-shadow: 0 4px 15px rgba(176, 141, 72, 0.35);
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.recommend-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(176, 141, 72, 0.55);
+  filter: brightness(1.08);
+}
+
+.recommend-btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+/* Brighten placeholder texts for query boxes */
+.chat-input::placeholder {
+  color: rgba(255, 255, 255, 0.48);
+}
+
+:root.light .chat-input::placeholder {
+  color: rgba(0, 0, 0, 0.48);
+}
+
+/* Home page two-column grid dashboard layout */
+.home-dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2rem;
+  align-items: start;
+  margin-top: 1.5rem;
+  margin-bottom: 2rem;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.home-dashboard-col {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+@media (max-width: 992px) {
+  .home-dashboard-grid {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+}
+
+.teaser-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  height: 250px;
+  cursor: pointer;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 24px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.teaser-card:hover {
+  transform: translateY(-5px);
+  border-color: rgba(245, 158, 11, 0.4);
+  box-shadow: 0 15px 35px rgba(245, 158, 11, 0.15);
 }
