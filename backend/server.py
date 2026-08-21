@@ -222,6 +222,25 @@ async def download_pdf(request: PDFRequest):
         raise HTTPException(status_code=500, detail=f"Failed to generate PDF: {str(e)}")
 
 
+def detect_audio_extension(filepath: str, default_ext: str) -> str:
+    try:
+        with open(filepath, "rb") as f:
+            header = f.read(16)
+        if header.startswith(b'\x1a\x45\xdf\xa3'):
+            return ".webm"
+        elif header.startswith(b'OggS'):
+            return ".ogg"
+        elif header.startswith(b'RIFF'):
+            return ".wav"
+        elif header.startswith(b'ID3') or header.startswith(b'\xff\xfb') or header.startswith(b'\xff\xf3') or header.startswith(b'\xff\xf2'):
+            return ".mp3"
+        elif b'ftyp' in header[4:12]:
+            return ".m4a"
+    except Exception as e:
+        print(f"[FORMAT DETECT] Error: {e}")
+    return default_ext
+
+
 @app.post("/classify")
 def classify_audio(file: UploadFile = File(...), lang: str = "en"):
     print(
@@ -277,6 +296,15 @@ def classify_audio(file: UploadFile = File(...), lang: str = "en"):
         else:
             with open(temp_path, "wb") as buffer:
                 shutil.copyfileobj(file.file, buffer)
+            
+            # Detect actual format and rename if extension doesn't match
+            detected_ext = detect_audio_extension(temp_path, file_extension)
+            if detected_ext != file_extension:
+                new_temp_path = os.path.join(UPLOAD_DIR, f"{file_id}{detected_ext}")
+                os.rename(temp_path, new_temp_path)
+                temp_path = new_temp_path
+                print(f"[FORMAT DETECT] Mismatched extension. Renamed {file.filename} to {file_id}{detected_ext}")
+                
             result = neural_engine.analyze(
                 temp_path, original_filename=file.filename, file_id=file_id, lang=lang
             )
@@ -331,8 +359,10 @@ def classify_audio(file: UploadFile = File(...), lang: str = "en"):
         }
 
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         print(f"Error: {str(e)}")
-        raise HTTPException(status_code=500, detail="Neural Inference Failed")
+        raise HTTPException(status_code=500, detail=f"Neural Inference Failed: {str(e)}")
     finally:
         if os.path.exists(temp_path):
             os.remove(temp_path)
@@ -340,5 +370,17 @@ def classify_audio(file: UploadFile = File(...), lang: str = "en"):
 
 if __name__ == "__main__":
     import uvicorn
+    import sys
+    from pathlib import Path
 
-    uvicorn.run("server:app", host="0.0.0.0", port=int(os.environ.get("PORT", 8000)))
+    port = int(os.environ.get("PORT", 8000))
+    project_root = str(Path(__file__).parent.parent)
+    
+    # Run server with auto-reload enabled
+    uvicorn.run(
+        "backend.server:app",
+        host="0.0.0.0",
+        port=port,
+        reload=True,
+        app_dir=project_root
+    )

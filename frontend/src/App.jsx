@@ -33,7 +33,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Cell, AreaChart, Area
 } from 'recharts';
-const API_BASE = "http://127.0.0.1:8001";
+const API_BASE = "http://127.0.0.1:8000";
 const SpectrogramView = ({ data }) => {
   const canvasRef = useRef(null);
 

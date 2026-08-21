@@ -36,7 +36,7 @@ class HybridRagaVision:
         self.model.eval()
         
         # HF Client
-        self.hf_client = InferenceClient("mistralai/Mistral-7B-Instruct-v0.3", token=hf_token)
+        self.hf_client = InferenceClient("Qwen/Qwen2.5-7B-Instruct", token=hf_token)
         
         # High-Precision Neural Mood Concepts (Global Context)
         self.neural_descriptions = [

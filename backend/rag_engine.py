@@ -160,7 +160,7 @@ class RagaChatEngine:
             except Exception as llm_err:
                 print(f"[RAG] LLM Error (API Expired?): {llm_err}")
                 # Fallback: Just return the retrieved chunks as context
-                context_docs = current_retriever.get_relevant_documents(question)
+                context_docs = current_retriever.invoke(question)
                 answer = "⚠️ [API Connection Error] I couldn't reach the LLM (it might be an expired API key). However, I've retrieved the following relevant data from your report:\n\n"
                 for i, doc in enumerate(context_docs):
                     answer += f"Chunk {i+1}: {doc.page_content[:300]}...\n\n"
