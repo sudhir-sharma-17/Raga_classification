@@ -54,7 +54,7 @@ class HybridRagaVision:
             self.text_embeds = outputs.text_embeds if hasattr(outputs, 'text_embeds') else (outputs.pooler_output if hasattr(outputs, 'pooler_output') else outputs[0])
             self.text_embeds = self.text_embeds / self.text_embeds.norm(p=2, dim=-1, keepdim=True)
 
-    def analyze(self, filepath, duration=30, original_filename="", file_id=None, lang="en"):
+    def analyze(self, filepath, duration=30, original_filename="", file_id=None, lang="en", intent=None):
         """
         Hyper-Spectral Semantic-Acoustic Fusion Pipeline (Modular Refactor)
         """
@@ -86,6 +86,7 @@ class HybridRagaVision:
         first_f0 = None
         first_voiced = None
         pitch_contour = []
+        detailed_features = {}
         
         for i, chunk in enumerate(chunks):
             if i * 10 > (duration if duration else 120): break
@@ -236,8 +237,8 @@ class HybridRagaVision:
             "detailed_features": detailed_features,
             "pitch_contour_data": pitch_contour,
             "swara_distribution_data": aggregated.get("swara_distribution", {}),
-            "therapy": get_therapy_output({"metadata": aggregated}, raga_name=res["raga_name"]),
-            "therapy_recommendation": get_therapy_output({"metadata": aggregated}, raga_name=res["raga_name"]),
+            "therapy": get_therapy_output({"metadata": aggregated, "detailed_features": detailed_features}, raga_name=res["raga_name"], user_intent=intent, neural_mood=neural_mood),
+            "therapy_recommendation": get_therapy_output({"metadata": aggregated, "detailed_features": detailed_features}, raga_name=res["raga_name"], user_intent=intent, neural_mood=neural_mood),
             "spectrogram_url": spectrogram_url
         }
 

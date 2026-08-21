@@ -242,9 +242,9 @@ def detect_audio_extension(filepath: str, default_ext: str) -> str:
 
 
 @app.post("/classify")
-def classify_audio(file: UploadFile = File(...), lang: str = "en"):
+def classify_audio(file: UploadFile = File(...), lang: str = "en", intent: Optional[str] = None):
     print(
-        f"[SERVER] Received classification request for: {file.filename} in language {lang}"
+        f"[SERVER] Received classification request for: {file.filename} in language {lang} with intent {intent}"
     )
     filename_lower = file.filename.lower()
     allowed_extensions = (
@@ -280,6 +280,7 @@ def classify_audio(file: UploadFile = File(...), lang: str = "en"):
                     original_filename=file.filename,
                     file_id=file_id,
                     lang=lang,
+                    intent=intent,
                 )
             except Exception:
                 # Fallback: check local day_ragas folder
@@ -290,6 +291,7 @@ def classify_audio(file: UploadFile = File(...), lang: str = "en"):
                         original_filename=file.filename,
                         file_id=file_id,
                         lang=lang,
+                        intent=intent,
                     )
                 else:
                     raise
@@ -306,7 +308,7 @@ def classify_audio(file: UploadFile = File(...), lang: str = "en"):
                 print(f"[FORMAT DETECT] Mismatched extension. Renamed {file.filename} to {file_id}{detected_ext}")
                 
             result = neural_engine.analyze(
-                temp_path, original_filename=file.filename, file_id=file_id, lang=lang
+                temp_path, original_filename=file.filename, file_id=file_id, lang=lang, intent=intent
             )
 
         formatted_pred = f"{result['prediction']} Raga"

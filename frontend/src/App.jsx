@@ -432,30 +432,153 @@ const BulkResultsView = ({ data, files, handleDownloadPDF, pdfLoading, handlePro
                         <div className="therapy-block" style={{ padding: '1rem' }}>
                           <span className="label" style={{marginBottom: '1rem', display: 'block'}}>🧘 Wellness & Therapy Profile</span>
                           {item.therapy ? (
-                            <div className="bulk-therapy-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.5rem' }}>
-                              <div className="scores-sub-block">
-                                <div className="score-item" style={{marginBottom: '0.8rem'}}>
-                                  <div style={{display:'flex', justifyContent:'space-between', fontSize:'0.8rem', fontWeight:700}}><span>Calm</span><span>{item.therapy.therapy_scores.calm_score}/10</span></div>
-                                  <div className="progress-bg"><div className="progress-fill calm" style={{width:`${item.therapy.therapy_scores.calm_score*10}%`}}></div></div>
-                                </div>
-                                <div className="score-item" style={{marginBottom: '0.8rem'}}>
-                                  <div style={{display:'flex', justifyContent:'space-between', fontSize:'0.8rem', fontWeight:700}}><span>Energy</span><span>{item.therapy.therapy_scores.energy_score}/10</span></div>
-                                  <div className="progress-bg"><div className="progress-fill energy" style={{width:`${item.therapy.therapy_scores.energy_score*10}%`}}></div></div>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                              
+                              {/* Music Wellness Profile */}
+                              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '1rem' }}>
+                                <div className="score-item">
+                                  <div style={{display:'flex', justifyContent:'space-between', fontSize:'0.75rem', fontWeight:700, color: 'var(--accent)'}}><span>Calmness</span><span>{item.therapy.wellness_profile?.calmness ?? item.therapy.therapy_scores?.calm_score ?? 5}/10</span></div>
+                                  <div className="progress-bg"><div className="progress-fill calm" style={{width:`${(item.therapy.wellness_profile?.calmness ?? item.therapy.therapy_scores?.calm_score ?? 5)*10}%`}}></div></div>
                                 </div>
                                 <div className="score-item">
-                                  <div style={{display:'flex', justifyContent:'space-between', fontSize:'0.8rem', fontWeight:700}}><span>Focus</span><span>{item.therapy.therapy_scores.focus_score}/10</span></div>
-                                  <div className="progress-bg"><div className="progress-fill focus" style={{width:`${item.therapy.therapy_scores.focus_score*10}%`}}></div></div>
+                                  <div style={{display:'flex', justifyContent:'space-between', fontSize:'0.75rem', fontWeight:700, color: 'var(--accent)'}}><span>Energy</span><span>{item.therapy.wellness_profile?.energy ?? item.therapy.therapy_scores?.energy_score ?? 5}/10</span></div>
+                                  <div className="progress-bg"><div className="progress-fill energy" style={{width:`${(item.therapy.wellness_profile?.energy ?? item.therapy.therapy_scores?.energy_score ?? 5)*10}%`}}></div></div>
+                                </div>
+                                <div className="score-item">
+                                  <div style={{display:'flex', justifyContent:'space-between', fontSize:'0.75rem', fontWeight:700, color: 'var(--accent)'}}><span>Focus</span><span>{item.therapy.wellness_profile?.focus ?? item.therapy.therapy_scores?.focus_score ?? 5}/10</span></div>
+                                  <div className="progress-bg"><div className="progress-fill focus" style={{width:`${(item.therapy.wellness_profile?.focus ?? item.therapy.therapy_scores?.focus_score ?? 5)*10}%`}}></div></div>
+                                </div>
+                                <div className="score-item">
+                                  <div style={{display:'flex', justifyContent:'space-between', fontSize:'0.75rem', fontWeight:700, color: 'var(--accent)'}}><span>Brightness</span><span>{item.therapy.wellness_profile?.brightness ?? 5}/10</span></div>
+                                  <div className="progress-bg"><div className="progress-fill uplifting" style={{width:`${(item.therapy.wellness_profile?.brightness ?? 5)*10}%`, background: '#fbc02d'}}></div></div>
+                                </div>
+                                <div className="score-item">
+                                  <div style={{display:'flex', justifyContent:'space-between', fontSize:'0.75rem', fontWeight:700, color: 'var(--accent)'}}><span>Stability</span><span>{item.therapy.wellness_profile?.stability ?? 5}/10</span></div>
+                                  <div className="progress-bg"><div className="progress-fill relaxing" style={{width:`${(item.therapy.wellness_profile?.stability ?? 5)*10}%`, background: '#2e7d32'}}></div></div>
+                                </div>
+                                <div className="score-item">
+                                  <div style={{display:'flex', justifyContent:'space-between', fontSize:'0.75rem', fontWeight:700, color: 'var(--accent)'}}><span>Complexity</span><span>{item.therapy.wellness_profile?.complexity ?? 5}/10</span></div>
+                                  <div className="progress-bg"><div className="progress-fill focus" style={{width:`${(item.therapy.wellness_profile?.complexity ?? 5)*10}%`, background: '#8e24aa'}}></div></div>
                                 </div>
                               </div>
-                              <div className="rec-sub-block">
-                                <div style={{background:'rgba(255,255,255,0.05)', padding:'0.8rem', borderRadius:'8px', border:'1px solid var(--border)'}}>
-                                  <div style={{fontSize:'0.7rem', color:'var(--text-dim)', marginBottom:'0.2rem'}}>Primary Recommendation</div>
-                                  <div style={{fontWeight:800, color:'var(--primary)', fontSize:'0.9rem'}}>{item.therapy.recommendation.primary}</div>
+
+                              {/* Temporal Suitability */}
+                              {item.therapy.temporal_suitability && (
+                                <div className="temporal-suitability-panel">
+                                  <span className="label" style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.75rem' }}>⏰ TEMPORAL SUITABILITY</span>
+                                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(90px, 1fr))', gap: '0.75rem', background: 'rgba(255,255,255,0.02)', padding: '0.75rem', borderRadius: '10px', border: '1px solid var(--border)' }}>
+                                    {Object.entries(item.therapy.temporal_suitability).map(([timeOfDay, pct]) => {
+                                      const TEMPORAL_NAMES = {
+                                        early_morning: "Early Morning",
+                                        morning: "Morning",
+                                        afternoon: "Afternoon",
+                                        evening: "Evening",
+                                        night: "Night",
+                                        late_night: "Late Night"
+                                      };
+                                      return (
+                                        <div key={timeOfDay} style={{ textAlign: 'center' }}>
+                                          <div style={{ fontSize: '0.65rem', color: 'var(--text-dim)', fontWeight: 700 }}>
+                                            {TEMPORAL_NAMES[timeOfDay] || timeOfDay.replace('_', ' ')}
+                                          </div>
+                                          <div style={{ fontSize: '0.95rem', fontWeight: 900, color: 'var(--primary)', margin: '0.15rem 0' }}>
+                                            {pct}%
+                                          </div>
+                                          <div className="progress-bg" style={{ height: '3px', margin: '0 auto', width: '80%' }}>
+                                            <div className="progress-fill calm" style={{ width: `${pct}%`, height: '100%' }}></div>
+                                          </div>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
                                 </div>
-                                <ul style={{marginTop:'0.8rem', fontSize:'0.8rem', paddingLeft:'1rem', color:'var(--text-main)'}}>
-                                  {item.therapy.explanation.slice(0,2).map((e, idx) => <li key={idx}>{e}</li>)}
-                                </ul>
+                              )}
+
+                              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem' }}>
+                                <div className="rec-sub-block">
+                                  {/* Primary Recommendation */}
+                                  <div style={{background:'rgba(255,255,255,0.05)', padding:'0.8rem', borderRadius:'8px', border:'1px solid var(--border)', marginBottom: '1rem'}}>
+                                    <div style={{fontSize:'0.7rem', color:'var(--text-dim)', marginBottom:'0.2rem'}}>Primary Recommendation</div>
+                                    <div style={{fontWeight:800, color:'var(--primary)', fontSize:'1rem', marginBottom: '0.4rem'}}>
+                                      {item.therapy.primary_recommendation?.activity ?? item.therapy.recommendation?.primary}
+                                    </div>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', fontSize: '0.75rem', color: 'var(--text-main)', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '0.4rem', marginTop: '0.4rem' }}>
+                                      {item.therapy.primary_recommendation?.score !== undefined && (
+                                        <div><strong>Compatibility:</strong> {item.therapy.primary_recommendation.score}%</div>
+                                      )}
+                                      {item.therapy.primary_recommendation?.best_time && (
+                                        <div><strong>Best Time:</strong> {item.therapy.primary_recommendation.best_time}</div>
+                                      )}
+                                      {item.therapy.primary_recommendation?.suggested_duration && (
+                                        <div><strong>Suggested Duration:</strong> {item.therapy.primary_recommendation.suggested_duration}</div>
+                                      )}
+                                      {item.therapy.primary_recommendation?.intensity && (
+                                        <div><strong>Intensity:</strong> {item.therapy.primary_recommendation.intensity}</div>
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  {/* Alternatives */}
+                                  {item.therapy.alternatives && item.therapy.alternatives.length > 0 && (
+                                    <div style={{ marginBottom: '1rem' }}>
+                                      <span className="label" style={{ display: 'block', marginBottom: '0.4rem', fontSize: '0.75rem' }}>ALTERNATIVE RECOMMENDATIONS</span>
+                                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                                        {item.therapy.alternatives.map((alt, idx) => (
+                                          <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', background: 'rgba(255, 255, 255, 0.02)', padding: '0.5rem 0.75rem', borderRadius: '6px', fontSize: '0.75rem', border: '1px solid var(--border)' }}>
+                                            <span style={{ fontWeight: 700, color: 'var(--text-main)' }}>{alt.activity}</span>
+                                            <span style={{ color: 'var(--primary)', fontWeight: 800 }}>{alt.score}%</span>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  {/* Session Plan */}
+                                  {item.therapy.session_plan && item.therapy.session_plan.length > 0 && (
+                                    <div className="session-planner" style={{ marginBottom: '1rem' }}>
+                                      <span className="label" style={{ display: 'block', marginBottom: '0.4rem', fontSize: '0.75rem' }}>SESSION PLAN</span>
+                                      <div className="timeline" style={{ paddingLeft: '0.5rem' }}>
+                                        {item.therapy.session_plan.map((r, i) => (
+                                          <div key={i} className="timeline-item" style={{ paddingBottom: '0.5rem' }}>
+                                            <span className="time" style={{ fontSize: '0.7rem' }}>{i === 0 ? "0m - 20m" : i === 1 ? "20m - 45m" : "45m - 60m"}</span>
+                                            <span className="raga" style={{ fontSize: '0.75rem' }}>{r}</span>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  )}
+                                </div>
+
+                                <div className="explanation-panel">
+                                  {/* Dynamic Recommendation Compatibility */}
+                                  {item.therapy.recommendation_scores && (
+                                    <div style={{ marginBottom: '1rem' }}>
+                                      <span className="label" style={{ display: 'block', marginBottom: '0.4rem', fontSize: '0.75rem' }}>RECOMMENDATION COMPATIBILITY</span>
+                                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '0.4rem' }}>
+                                        {Object.entries(item.therapy.recommendation_scores)
+                                          .sort((a, b) => b[1] - a[1])
+                                          .map(([activity, score]) => (
+                                            <div key={activity} style={{ display: 'flex', justifyContent: 'space-between', background: 'rgba(255, 255, 255, 0.02)', padding: '0.4rem 0.6rem', borderRadius: '6px', fontSize: '0.75rem', border: '1px solid var(--border)' }}>
+                                              <span style={{ fontWeight: 600, color: 'var(--text-main)', fontSize: '0.7rem' }}>{activity}</span>
+                                              <span style={{ color: 'var(--primary)', fontWeight: 800 }}>{score}%</span>
+                                            </div>
+                                          ))}
+                                      </div>
+                                    </div>
+                                  )}
+
+                                  {/* Explanation Bullets */}
+                                  <span className="label" style={{ display: 'block', marginBottom: '0.4rem', fontSize: '0.75rem', marginTop: '1rem' }}>Why this recommendation?</span>
+                                  <div style={{ background: 'rgba(255,255,255,0.02)', padding: '0.8rem', borderRadius: '8px', border: '1px solid var(--border)' }}>
+                                    <ul style={{ margin: 0, paddingLeft: '1.25rem', fontSize: '0.75rem', color: 'var(--text-main)', lineHeight: '1.4' }}>
+                                      {item.therapy.explanation.map((e, idx) => (
+                                        <li key={idx} style={{ marginBottom: '0.3rem' }}>{e}</li>
+                                      ))}
+                                    </ul>
+                                  </div>
+                                </div>
                               </div>
+
                             </div>
                           ) : <p className="narrative-text-small">Therapy data not available.</p>}
                         </div>
@@ -1147,53 +1270,162 @@ const App = () => {
                         <h2 style={{ margin: 0, color: 'var(--accent)', fontSize: '1.75rem' }}>Therapy Analysis</h2>
                       </div>
 
-                      <div className="therapy-scores-row" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '2rem', marginBottom: '2rem' }}>
-                        <div className="score-block">
-                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem', fontWeight: 800, color: 'var(--accent)' }}>
-                            <span>Calm Score</span>
-                            <span>{result.therapy.therapy_scores.calm_score}/10</span>
+                      {/* Music Wellness Profile */}
+                      <div style={{ marginBottom: '1.5rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                        <span className="label" style={{ display: 'block', fontSize: '1rem' }}>🎵 Music Wellness Profile</span>
+                        <div className="therapy-scores-row" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.5rem', marginBottom: '1.5rem' }}>
+                          <div className="score-block">
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.3rem', fontWeight: 800, color: 'var(--accent)' }}>
+                              <span>Calmness</span>
+                              <span>{result.therapy.wellness_profile?.calmness ?? result.therapy.therapy_scores?.calm_score ?? 5}/10</span>
+                            </div>
+                            <div className="progress-bg"><div className="progress-fill calm" style={{ width: `${(result.therapy.wellness_profile?.calmness ?? result.therapy.therapy_scores?.calm_score ?? 5) * 10}%` }}></div></div>
                           </div>
-                          <div className="progress-bg"><div className="progress-fill calm" style={{ width: `${result.therapy.therapy_scores.calm_score * 10}%` }}></div></div>
-                        </div>
-                        <div className="score-block">
-                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem', fontWeight: 800, color: 'var(--accent)' }}>
-                            <span>Energy Score</span>
-                            <span>{result.therapy.therapy_scores.energy_score}/10</span>
+                          <div className="score-block">
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.3rem', fontWeight: 800, color: 'var(--accent)' }}>
+                              <span>Energy</span>
+                              <span>{result.therapy.wellness_profile?.energy ?? result.therapy.therapy_scores?.energy_score ?? 5}/10</span>
+                            </div>
+                            <div className="progress-bg"><div className="progress-fill energy" style={{ width: `${(result.therapy.wellness_profile?.energy ?? result.therapy.therapy_scores?.energy_score ?? 5) * 10}%` }}></div></div>
                           </div>
-                          <div className="progress-bg"><div className="progress-fill energy" style={{ width: `${result.therapy.therapy_scores.energy_score * 10}%` }}></div></div>
-                        </div>
-                        <div className="score-block">
-                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem', fontWeight: 800, color: 'var(--accent)' }}>
-                            <span>Focus Score</span>
-                            <span>{result.therapy.therapy_scores.focus_score}/10</span>
+                          <div className="score-block">
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.3rem', fontWeight: 800, color: 'var(--accent)' }}>
+                              <span>Focus</span>
+                              <span>{result.therapy.wellness_profile?.focus ?? result.therapy.therapy_scores?.focus_score ?? 5}/10</span>
+                            </div>
+                            <div className="progress-bg"><div className="progress-fill focus" style={{ width: `${(result.therapy.wellness_profile?.focus ?? result.therapy.therapy_scores?.focus_score ?? 5) * 10}%` }}></div></div>
                           </div>
-                          <div className="progress-bg"><div className="progress-fill focus" style={{ width: `${result.therapy.therapy_scores.focus_score * 10}%` }}></div></div>
+                          <div className="score-block">
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.3rem', fontWeight: 800, color: 'var(--accent)' }}>
+                              <span>Brightness</span>
+                              <span>{result.therapy.wellness_profile?.brightness ?? 5}/10</span>
+                            </div>
+                            <div className="progress-bg"><div className="progress-fill uplifting" style={{ width: `${(result.therapy.wellness_profile?.brightness ?? 5) * 10}%`, background: '#fbc02d' }}></div></div>
+                          </div>
+                          <div className="score-block">
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.3rem', fontWeight: 800, color: 'var(--accent)' }}>
+                              <span>Stability</span>
+                              <span>{result.therapy.wellness_profile?.stability ?? 5}/10</span>
+                            </div>
+                            <div className="progress-bg"><div className="progress-fill relaxing" style={{ width: `${(result.therapy.wellness_profile?.stability ?? 5) * 10}%`, background: '#2e7d32' }}></div></div>
+                          </div>
+                          <div className="score-block">
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.3rem', fontWeight: 800, color: 'var(--accent)' }}>
+                              <span>Complexity</span>
+                              <span>{result.therapy.wellness_profile?.complexity ?? 5}/10</span>
+                            </div>
+                            <div className="progress-bg"><div className="progress-fill focus" style={{ width: `${(result.therapy.wellness_profile?.complexity ?? 5) * 10}%`, background: '#8e24aa' }}></div></div>
+                          </div>
                         </div>
                       </div>
+
+                      {/* Temporal Suitability */}
+                      {result.therapy.temporal_suitability && (
+                        <div className="temporal-suitability-panel" style={{ marginBottom: '2rem' }}>
+                          <span className="label" style={{ display: 'block', marginBottom: '0.75rem' }}>⏰ TEMPORAL SUITABILITY</span>
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(110px, 1fr))', gap: '1rem', background: 'rgba(255,255,255,0.4)', padding: '1rem', borderRadius: '15px', border: '1px solid var(--border)' }}>
+                            {Object.entries(result.therapy.temporal_suitability).map(([timeOfDay, pct]) => {
+                              const TEMPORAL_NAMES = {
+                                early_morning: "Early Morning",
+                                morning: "Morning",
+                                afternoon: "Afternoon",
+                                evening: "Evening",
+                                night: "Night",
+                                late_night: "Late Night"
+                              };
+                              return (
+                                <div key={timeOfDay} style={{ textAlign: 'center' }}>
+                                  <div style={{ fontSize: '0.7rem', color: 'var(--text-dim)', fontWeight: 700 }}>
+                                    {TEMPORAL_NAMES[timeOfDay] || timeOfDay.replace('_', ' ')}
+                                  </div>
+                                  <div style={{ fontSize: '1.1rem', fontWeight: 900, color: 'var(--primary)', margin: '0.2rem 0' }}>
+                                    {pct}%
+                                  </div>
+                                  <div className="progress-bg" style={{ height: '4px', margin: '0 auto', width: '80%' }}>
+                                    <div className="progress-fill calm" style={{ width: `${pct}%`, height: '100%' }}></div>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
 
                       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '2rem' }}>
                         <div className="recommendation-panel">
                           <div style={{ marginBottom: '1.5rem' }}>
                             <span className="label" style={{ display: 'block', marginBottom: '0.5rem' }}>Primary Recommendation</span>
-                            <div style={{ fontSize: '1.25rem', fontWeight: 900, color: 'var(--primary)', background: 'white', padding: '1rem', borderRadius: '15px', border: '1px solid var(--border)' }}>
-                              {result.therapy.recommendation.primary}
+                            <div style={{ background: 'white', padding: '1.25rem', borderRadius: '15px', border: '1px solid var(--border)' }}>
+                              <div style={{ fontSize: '1.25rem', fontWeight: 900, color: 'var(--primary)', marginBottom: '0.5rem' }}>
+                                {result.therapy.primary_recommendation?.activity ?? result.therapy.recommendation?.primary}
+                              </div>
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', fontSize: '0.85rem', color: 'var(--text-main)', marginTop: '0.5rem', borderTop: '1px solid var(--border)', paddingTop: '0.5rem' }}>
+                                {result.therapy.primary_recommendation?.score !== undefined && (
+                                  <div><strong>Compatibility:</strong> {result.therapy.primary_recommendation.score}%</div>
+                                )}
+                                {result.therapy.primary_recommendation?.best_time && (
+                                  <div><strong>Best Time:</strong> {result.therapy.primary_recommendation.best_time}</div>
+                                )}
+                                {result.therapy.primary_recommendation?.suggested_duration && (
+                                  <div><strong>Suggested Duration:</strong> {result.therapy.primary_recommendation.suggested_duration}</div>
+                                )}
+                                {result.therapy.primary_recommendation?.intensity && (
+                                  <div><strong>Intensity:</strong> {result.therapy.primary_recommendation.intensity}</div>
+                                )}
+                              </div>
                             </div>
                           </div>
-                          <div className="session-planner">
-                            <span className="sub-label">Raga Therapy Session Planner (1 Hour)</span>
-                            <div className="timeline">
-                              {result.therapy.session_plan.map((r, i) => (
-                                <div key={i} className="timeline-item">
-                                  <span className="time">{i === 0 ? "0m - 20m" : i === 1 ? "20m - 45m" : "45m - 60m"}</span>
-                                  <span className="raga">{r}</span>
-                                </div>
-                              ))}
+
+                          {/* Alternatives */}
+                          {result.therapy.alternatives && result.therapy.alternatives.length > 0 && (
+                            <div style={{ marginBottom: '1.5rem' }}>
+                              <span className="label" style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.9rem' }}>ALTERNATIVE RECOMMENDATIONS</span>
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                                {result.therapy.alternatives.map((alt, idx) => (
+                                  <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', background: 'rgba(255, 255, 255, 0.4)', padding: '0.6rem 0.8rem', borderRadius: '10px', fontSize: '0.85rem', border: '1px solid var(--border)' }}>
+                                    <span style={{ fontWeight: 700, color: 'var(--text-main)' }}>{alt.activity}</span>
+                                    <span style={{ color: 'var(--primary)', fontWeight: 800 }}>{alt.score}%</span>
+                                  </div>
+                                ))}
+                              </div>
                             </div>
-                          </div>
+                          )}
+
+                          {/* Session Plan */}
+                          {result.therapy.session_plan && result.therapy.session_plan.length > 0 && (
+                            <div className="session-planner" style={{ marginBottom: '1.5rem' }}>
+                              <span className="label" style={{ display: 'block', marginBottom: '0.5rem' }}>SESSION PLAN</span>
+                              <div className="timeline">
+                                {result.therapy.session_plan.map((r, i) => (
+                                  <div key={i} className="timeline-item">
+                                    <span className="time">{i === 0 ? "0m - 20m" : i === 1 ? "20m - 45m" : "45m - 60m"}</span>
+                                    <span className="raga">{r}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Recommendation Compatibility Scores */}
+                          {result.therapy.recommendation_scores && (
+                            <div style={{ marginBottom: '1.5rem' }}>
+                              <span className="label" style={{ display: 'block', marginBottom: '0.5rem' }}>RECOMMENDATION COMPATIBILITY</span>
+                              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.5rem' }}>
+                                {Object.entries(result.therapy.recommendation_scores)
+                                  .sort((a, b) => b[1] - a[1])
+                                  .map(([activity, score]) => (
+                                    <div key={activity} style={{ display: 'flex', justifyContent: 'space-between', background: 'rgba(255, 255, 255, 0.3)', padding: '0.5rem 0.75rem', borderRadius: '8px', fontSize: '0.8rem', border: '1px solid var(--border)' }}>
+                                      <span style={{ fontWeight: 600, color: 'var(--text-main)', fontSize: '0.75rem' }}>{activity}</span>
+                                      <span style={{ color: 'var(--primary)', fontWeight: 800 }}>{score}%</span>
+                                    </div>
+                                  ))}
+                              </div>
+                            </div>
+                          )}
                         </div>
 
                         <div className="explanation-panel">
-                          <span className="label" style={{ display: 'block', marginBottom: '0.5rem' }}>Therapeutic Explanation</span>
+                          <span className="label" style={{ display: 'block', marginBottom: '0.5rem' }}>Why this recommendation?</span>
                           <div style={{ background: 'rgba(255,255,255,0.5)', padding: '1.25rem', borderRadius: '15px', border: '1px solid var(--border)' }}>
                             <ul style={{ margin: 0, paddingLeft: '1.25rem', fontSize: '0.9rem', color: 'var(--text-main)', lineHeight: '1.5' }}>
                               {result.therapy.explanation.map((point, i) => (
@@ -1202,7 +1434,7 @@ const App = () => {
                             </ul>
                           </div>
                           {result.therapy.raga_metadata?.science_note && (
-                            <div className="science-note-card">
+                            <div className="science-note-card" style={{ marginTop: '1.5rem' }}>
                               <strong>Note:</strong> {result.therapy.raga_metadata.science_note}
                             </div>
                           )}

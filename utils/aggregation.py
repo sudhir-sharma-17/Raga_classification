@@ -87,11 +87,34 @@ def aggregate_features(chunk_features_list):
     # Sort and take top 5
     top_pakads = sorted(aggregated_pakads.items(), key=lambda x: x[1], reverse=True)[:5]
 
+    # 7. Gamakas: Average oscillations and avg_var, collect slides
+    oscillations_list = []
+    avg_var_list = []
+    has_slides = "No"
+    for chunk in chunk_features_list:
+        g = chunk.get("gamakas", {})
+        if g:
+            if g.get("oscillations") is not None:
+                oscillations_list.append(g.get("oscillations"))
+            if g.get("avg_var") is not None:
+                avg_var_list.append(g.get("avg_var"))
+            if g.get("slides") == "Yes":
+                has_slides = "Yes"
+    
+    avg_oscillations = sum(oscillations_list) / len(oscillations_list) if oscillations_list else 0
+    avg_pitch_var = sum(avg_var_list) / len(avg_var_list) if avg_var_list else 0
+    aggregated_gamakas = {
+        "oscillations": round(avg_oscillations, 1),
+        "slides": has_slides,
+        "avg_var": round(avg_pitch_var, 1)
+    }
+
     return {
         "swara_distribution": {k: round(v, 4) for k, v in aggregated_swaras.items()},
         "dominant_notes": dominant_notes,
         "transitions": aggregated_transitions,
         "pitch_range": [round(global_min, 1), round(global_max, 1)],
         "tempo": round(avg_tempo, 1),
-        "pakads": top_pakads
+        "pakads": top_pakads,
+        "gamakas": aggregated_gamakas
     }
